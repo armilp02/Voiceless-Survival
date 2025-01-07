@@ -29,7 +29,6 @@ public class EZVCSurvival {
 
         // Registra eventos
         modEventBus.addListener(this::commonSetup);
-        modEventBus.addListener(this::addCreative);
         // Registro en Forge Event Bus
         MinecraftForge.EVENT_BUS.register(this);
 
@@ -39,19 +38,7 @@ public class EZVCSurvival {
     private void commonSetup(final FMLCommonSetupEvent event) {
     }
 
-    private void addCreative(BuildCreativeModeTabContentsEvent event) {
-        // Add items to the creative tab logic
-    }
-
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
-    }
-
-    @Mod.EventBusSubscriber(modid = MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
-    public static class ClientModEvents {
-        @SubscribeEvent
-        public static void onClientSetup(FMLClientSetupEvent event) {
-            // Client setup logic
-        }
     }
 }
