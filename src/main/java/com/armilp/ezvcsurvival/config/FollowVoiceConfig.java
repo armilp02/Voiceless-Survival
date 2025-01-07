@@ -23,7 +23,7 @@ public class FollowVoiceConfig {
         ).defineList(
                 "mob_configs",
                 List.of(
-                        "minecraft:zombie=speed=1.0,range=16",
+                        "minecraft:zombie=speed=1.5,range=16",
                         "minecraft:skeleton=speed=1.2,range=12"
                 ),
                 obj -> obj instanceof String && ((String) obj).contains("=")
