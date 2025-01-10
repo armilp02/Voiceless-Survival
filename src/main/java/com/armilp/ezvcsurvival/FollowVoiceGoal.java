@@ -65,14 +65,14 @@ public class FollowVoiceGoal extends Goal {
         double distanceToPlayer = mob.distanceTo(targetPlayer);
 
         // Si el jugador sale del rango, reiniciar el seguimiento
-        if (distanceToPlayer > 5.0) {
+        if (distanceToPlayer > 2.0) {
             targetPlayer = null;
             mob.getNavigation().stop();
             return;
         }
 
         // Si el mob está cerca del jugador (por ejemplo, rango de ataque = 1.5 bloques), atacar
-        if (distanceToPlayer <= 1.5) {
+        if (distanceToPlayer <= 1.0) {
             mob.getNavigation().stop();
             mob.swing(mob.getUsedItemHand()); // Animación del ataque
             mob.doHurtTarget(targetPlayer);   // Realiza el ataque
