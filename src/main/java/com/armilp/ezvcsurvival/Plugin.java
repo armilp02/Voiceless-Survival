@@ -1,16 +1,13 @@
 package com.armilp.ezvcsurvival;
 
-import de.maxhenkel.voicechat.api.ForgeVoicechatPlugin;
-import de.maxhenkel.voicechat.api.VoicechatApi;
-import de.maxhenkel.voicechat.api.VoicechatPlugin;
+import de.maxhenkel.voicechat.api.*;
 import de.maxhenkel.voicechat.api.events.EventRegistration;
 import de.maxhenkel.voicechat.api.events.MicrophonePacketEvent;
 import de.maxhenkel.voicechat.api.opus.OpusDecoder;
-import de.maxhenkel.voicechat.api.packets.MicrophonePacket;
-import de.maxhenkel.voicechat.api.VoicechatConnection;
 import net.minecraft.core.BlockPos;
 import net.minecraftforge.fml.common.Mod;
 
+import javax.annotation.Nullable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -21,25 +18,26 @@ import java.util.concurrent.TimeUnit;
 @Mod.EventBusSubscriber(modid = "ezvcsurvival")
 public class Plugin implements VoicechatPlugin {
 
-    private static final long DEBUG_COOLDOWN = 2000; // 2 segundos de cooldown
+
+    private static final double MIN_ACTIVATION_THRESHOLD = -40.0;
     private static final boolean DEBUG = true;
 
-    private static final Map<UUID, Long> debugCooldowns = new ConcurrentHashMap<>();
     private static final Map<UUID, BlockPos> playerSoundLocations = new ConcurrentHashMap<>();
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     private static VoicechatApi voicechatApi;
-    private static OpusDecoder opusDecoder;
 
     @Override
     public String getPluginId() {
         return "ezvcsurvival";
     }
 
+    @Nullable
+    private OpusDecoder decoder;
+
     @Override
     public void initialize(VoicechatApi api) {
         voicechatApi = api;
-        opusDecoder = voicechatApi.createDecoder();
         if (DEBUG) {
             System.out.println("[DEBUG] VoiceChat Plugin initialized");
         }
@@ -54,21 +52,27 @@ public class Plugin implements VoicechatPlugin {
     }
 
     /**
-     * Valida los datos de audio usando el decodificador de Opus.
+     * Calcula el nivel de audio en decibelios (dB) a partir de una señal PCM.
      *
-     * @param audioData Los datos codificados en Opus.
-     * @return true si los datos son válidos, false en caso contrario.
+     * @param samples La señal PCM en formato short.
+     * @return El nivel de audio en dB.
      */
-    private boolean isValidAudio(byte[] audioData) {
-        if (audioData == null || audioData.length == 0) return false;
-        try {
-            short[] decoded = opusDecoder.decode(audioData);
-            return decoded != null && decoded.length > 0;
-        } catch (Exception e) {
-            if (DEBUG) {
-                System.out.println("[DEBUG] Error al decodificar el paquete: " + e.getMessage());
-            }
-            return false;
+    public static double calculateAudioLevel(short[] samples) {
+        double rms = 0D; // Amplitud RMS (root mean square)
+
+        for (short sample : samples) {
+            double normalizedSample = (double) sample / (double) Short.MAX_VALUE;
+            rms += normalizedSample * normalizedSample;
+        }
+
+        int sampleCount = samples.length;
+
+        rms = (sampleCount == 0) ? 0 : Math.sqrt(rms / sampleCount);
+
+        if (rms > 0D) {
+            return Math.min(Math.max(20D * Math.log10(rms), -127D), 0D);
+        } else {
+            return -127D;
         }
     }
 
@@ -89,16 +93,34 @@ public class Plugin implements VoicechatPlugin {
     /**
      * Maneja el evento de recepción de un paquete de micrófono.
      */
+    /**
+     * Maneja el evento de recepción de un paquete de micrófono.
+     */
     public void onMicrophonePacket(MicrophonePacketEvent event) {
-        MicrophonePacket packet = event.getPacket();
-        if (packet == null) return;
+        if (decoder == null || decoder.isClosed()) {
+            decoder = voicechatApi.createDecoder(); // Asegurarse de que el decodificador está disponible
+        }
 
-        byte[] audioData = packet.getOpusEncodedData();
-        if (!isValidAudio(audioData)) { // Validar los datos de audio
+        decoder.resetState(); // Reiniciar el estado del decodificador
+        byte[] opusEncodedData = event.getPacket().getOpusEncodedData();
+        short[] decoded;
+
+        try {
+            decoded = decoder.decode(opusEncodedData);
+        } catch (Exception e) {
             if (DEBUG) {
-                System.out.println("[DEBUG] Paquete ignorado: datos de audio inválidos");
+                System.out.println("[DEBUG] Error al decodificar el paquete: " + e.getMessage());
             }
             return;
+        }
+
+        double audioLevel = calculateAudioLevel(decoded);
+
+        if (audioLevel < MIN_ACTIVATION_THRESHOLD) {
+            if (DEBUG) {
+                System.out.println("[DEBUG] Nivel de audio demasiado bajo: " + audioLevel + " dB");
+            }
+            return; // Ignorar si el nivel de audio está por debajo del umbral
         }
 
         VoicechatConnection sender = event.getSenderConnection();
@@ -111,28 +133,15 @@ public class Plugin implements VoicechatPlugin {
                     (int) Math.floor(voicechatPosition.getZ())
             );
 
+            // Registrar la posición del jugador para otros sistemas
             playerSoundLocations.put(playerUUID, playerPosition);
 
-            long currentTime = System.currentTimeMillis();
-            long lastDebugTime = debugCooldowns.getOrDefault(playerUUID, 0L);
-
-            if (DEBUG && currentTime - lastDebugTime >= DEBUG_COOLDOWN) {
-                debugCooldowns.put(playerUUID, currentTime);
-                System.out.println("[DEBUG] Posición del jugador registrada: " + playerPosition);
+            if (DEBUG) {
+                System.out.println("[DEBUG] Nivel de audio aceptado: " + audioLevel + " dB en posición " + playerPosition);
             }
 
-            // Programar la eliminación después de 5 segundos
+            // Programar eliminación después de 5 segundos
             scheduler.schedule(() -> playerSoundLocations.remove(playerUUID), 5, TimeUnit.SECONDS);
         }
-    }
-
-    /**
-     * Libera recursos utilizados por el plugin.
-     */
-    public static void shutdown() {
-        if (opusDecoder != null && !opusDecoder.isClosed()) {
-            opusDecoder.close();
-        }
-        scheduler.shutdown();
     }
 }

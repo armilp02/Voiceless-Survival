@@ -19,10 +19,10 @@ public class FollowVoiceGoalInjector {
         if (!(event.getEntity() instanceof Mob mob)) return;
 
         // Obtén la configuración del mob
-        Map<String, String> configs = FollowVoiceConfig.getMobVoiceConfigs();
+        Map<String, String> configs = VoiceConfig.getMobVoiceConfigs();
         ResourceLocation mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType());
 
-        if (mobId != null && configs.containsKey(mobId.toString())) {
+        if (configs.containsKey(mobId.toString())) {
             String config = configs.get(mobId.toString());
 
             // Parsear velocidad y rango desde la configuración
