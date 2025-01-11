@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 @Mod.EventBusSubscriber(modid = "ezvcsurvival")
 public class Plugin implements VoicechatPlugin {
 
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
 
     private final Map<String, Long> debugCooldowns = new HashMap<>(); // Para rastrear el tiempo del último debug
     private static final long DEBUG_COOLDOWN_MS = 2000; // Cooldown en milisegundos
