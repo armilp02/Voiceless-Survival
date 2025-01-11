@@ -22,8 +22,8 @@ public class VoiceConfig {
         ).defineList(
                 "mob_configs",
                 List.of(
-                        "minecraft:zombie=speed=1.5,range=25,threshold=-10.0",
-                        "minecraft:skeleton=speed=1.2,range=25,threshold=-20.0"
+                        "minecraft:zombie=speed=1.5,range=20,threshold=-40.0",
+                        "minecraft:skeleton=speed=1.2,range=15,threshold=-35.0"
                 ),
                 obj -> obj instanceof String && ((String) obj).contains("=")
         );
