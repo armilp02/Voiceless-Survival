@@ -15,16 +15,15 @@ public class VoiceConfig {
     static {
         BUILDER.push("FollowVoiceGoal Config");
 
-        // Configuración dinámica basada en listas
         MOB_VOICE_CONFIGS = BUILDER.comment(
                 "List of mob configurations for FollowVoiceGoal.",
-                "Format: 'mob_id=speed=<value>,range=<value>'",
-                "Example: 'minecraft:zombie=speed=1.0,range=16'"
+                "Format: 'mob_id=speed=<value>,range=<value>,threshold=<value>'",
+                "Example: 'minecraft:zombie=speed=1.5,range=25,threshold=-10.0'"
         ).defineList(
                 "mob_configs",
                 List.of(
-                        "minecraft:zombie=speed=1.5,range=16",
-                        "minecraft:skeleton=speed=1.2,range=12"
+                        "minecraft:zombie=speed=1.5,range=25,threshold=-10.0",
+                        "minecraft:skeleton=speed=1.2,range=25,threshold=-20.0"
                 ),
                 obj -> obj instanceof String && ((String) obj).contains("=")
         );
@@ -33,19 +32,28 @@ public class VoiceConfig {
         CONFIG = BUILDER.build();
     }
 
-    public static Map<String, String> getMobVoiceConfigs() {
-        Map<String, String> parsedConfigs = new HashMap<>();
-
-        // Parsear las configuraciones dinámicas desde la lista
+    public static Map<String, Map<String, Double>> getMobVoiceConfigs() {
+        Map<String, Map<String, Double>> parsedConfigs = new HashMap<>();
         for (String config : MOB_VOICE_CONFIGS.get()) {
             String[] parts = config.split("=", 2);
             if (parts.length == 2) {
                 String mobId = parts[0];
-                String mobConfig = parts[1];
+                String[] attributes = parts[1].split(",");
+
+                Map<String, Double> mobConfig = new HashMap<>();
+                for (String attribute : attributes) {
+                    String[] keyValue = attribute.split("=");
+                    if (keyValue.length == 2) {
+                        try {
+                            mobConfig.put(keyValue[0].trim(), Double.parseDouble(keyValue[1].trim()));
+                        } catch (NumberFormatException e) {
+                            System.err.println("[VoiceConfig] Invalid number format in: " + attribute);
+                        }
+                    }
+                }
                 parsedConfigs.put(mobId, mobConfig);
             }
         }
-
         return parsedConfigs;
     }
 }

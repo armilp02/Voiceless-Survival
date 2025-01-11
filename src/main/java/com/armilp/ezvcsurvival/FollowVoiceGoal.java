@@ -13,13 +13,15 @@ public class FollowVoiceGoal extends Goal {
     private final double speedModifier;
     private final int voiceDetectionRange;
     private Player targetPlayer;
+    private final double threshold;
     private BlockPos targetSoundPosition;
     private long timePlayerInRange;
 
-    public FollowVoiceGoal(Mob mob, double speedModifier, int detectionRange) {
+    public FollowVoiceGoal(Mob mob, double speedModifier, int detectionRange, double threshold) {
         this.mob = mob;
         this.speedModifier = speedModifier;
         this.voiceDetectionRange = detectionRange;
+        this.threshold = threshold;
         this.setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.TARGET));
     }
 
