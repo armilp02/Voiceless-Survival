@@ -16,6 +16,8 @@ public class FollowVoiceGoal extends Goal {
     private final double threshold;
     private BlockPos targetSoundPosition;
     private long timePlayerInRange;
+    private long lastAttackTime = 0;
+    private final long attackCooldown = 2000;
 
     public FollowVoiceGoal(Mob mob, double speedModifier, int detectionRange, double threshold) {
         this.mob = mob;
@@ -50,6 +52,7 @@ public class FollowVoiceGoal extends Goal {
     @Override
     public void tick() {
         if (targetPlayer != null) {
+            targetSoundPosition = null;
             handlePlayerInteraction();
         } else if (targetSoundPosition != null) {
             handleSoundInteraction();
@@ -66,33 +69,43 @@ public class FollowVoiceGoal extends Goal {
     private void handlePlayerInteraction() {
         double distanceToPlayer = mob.distanceTo(targetPlayer);
 
-        // Si el jugador sale del rango, reiniciar el seguimiento
-        if (distanceToPlayer > 2.0) {
+        // Ignorar al jugador si está en modo creativo
+        if (targetPlayer.isCreative()) {
             targetPlayer = null;
             mob.getNavigation().stop();
             return;
         }
 
-        // Si el mob está cerca del jugador (por ejemplo, rango de ataque = 1.5 bloques), atacar
-        if (distanceToPlayer <= 1.0) {
+        // Si el jugador está fuera del rango de detección, reiniciar el objetivo
+        if (distanceToPlayer > voiceDetectionRange) {
+            targetPlayer = null;
             mob.getNavigation().stop();
-            mob.swing(mob.getUsedItemHand()); // Animación del ataque
-            mob.doHurtTarget(targetPlayer);   // Realiza el ataque
             return;
         }
 
-        // Comprobar si el jugador lleva más de 10 segundos en rango y atacar
-        if (System.currentTimeMillis() - timePlayerInRange >= 10_000) {
-            mob.setTarget(targetPlayer); // Apunta al jugador como objetivo
-        } else {
-            mob.getNavigation().moveTo(targetPlayer, speedModifier); // Sigue al jugador
+        // Si el mob está cerca del jugador, atacar
+        if (distanceToPlayer <= 1.0) {
+            long currentTime = System.currentTimeMillis(); // Tiempo actual en milisegundos
+
+            // Verificar si el mob puede atacar nuevamente
+            if (currentTime - lastAttackTime >= attackCooldown) {
+                mob.getNavigation().stop();
+                mob.swing(mob.getUsedItemHand()); // Animación del ataque
+                mob.doHurtTarget(targetPlayer);   // Realiza el daño al jugador
+                lastAttackTime = currentTime;     // Actualizar el tiempo del último ataque
+            }
+            return;
         }
+
+        // Si el jugador está dentro del rango, moverse hacia él
+        mob.getNavigation().moveTo(targetPlayer, speedModifier);
+        targetSoundPosition = null; // Ignorar sonidos mientras persigue al jugador
     }
 
     private void handleSoundInteraction() {
         double distanceToTarget = mob.blockPosition().distSqr(targetSoundPosition);
 
-        if (distanceToTarget <= 2.0 * 2.0) {
+        if (distanceToTarget <= 1.5 * 1.5) {
             targetSoundPosition = Plugin.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange);
             if (targetSoundPosition != null) {
                 moveToSoundPosition();
@@ -118,8 +131,6 @@ public class FollowVoiceGoal extends Goal {
     private Player getNearestPlayerInRange() {
         return mob.level().getNearestPlayer(mob, 5);
     }
-
-
 
     private void moveToSoundPosition() {
         if (targetSoundPosition != null) {

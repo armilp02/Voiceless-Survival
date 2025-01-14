@@ -21,8 +21,6 @@ public class Plugin implements VoicechatPlugin {
 
     private static final boolean DEBUG = false;
 
-    private final Map<String, Long> debugCooldowns = new HashMap<>(); // Para rastrear el tiempo del último debug
-    private static final long DEBUG_COOLDOWN_MS = 2000; // Cooldown en milisegundos
     private static final Map<UUID, BlockPos> playerSoundLocations = new ConcurrentHashMap<>();
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
@@ -109,8 +107,6 @@ public class Plugin implements VoicechatPlugin {
 
             List<String> mobIds = getConfiguredMobIds();
 
-
-            // Iterar sobre cada mob ID y verificar su threshold individualmente
             for (String mobId : mobIds) {
                 double threshold = getActivationThreshold(mobId);
 
@@ -118,7 +114,7 @@ public class Plugin implements VoicechatPlugin {
                     if (DEBUG) {
                         System.out.println("[DEBUG] Nivel de audio demasiado bajo para " + mobId + ": " + audioLevel + " dB");
                     }
-                    continue; // Saltar al siguiente mob ID
+                    continue;
                 }
 
                 playerSoundLocations.put(playerUUID, playerPosition);
@@ -133,7 +129,6 @@ public class Plugin implements VoicechatPlugin {
     }
 
     private List<String> getConfiguredMobIds() {
-        // Obtener los IDs de mobs desde la configuración
         Map<String, Map<String, Double>> mobConfigs = VoiceConfig.getMobVoiceConfigs();
         return new ArrayList<>(mobConfigs.keySet());
     }
@@ -145,6 +140,6 @@ public class Plugin implements VoicechatPlugin {
             return mobConfig.get("threshold");
         }
         System.out.println("[VoiceConfig] Mob ID not found or no threshold set: " + mobId);
-        return -40.0; // Valor predeterminado
+        return -40.0;
     }
 }
