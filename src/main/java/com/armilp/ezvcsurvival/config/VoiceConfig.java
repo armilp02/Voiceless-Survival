@@ -12,13 +12,18 @@ public class VoiceConfig {
 
     private static final ForgeConfigSpec.ConfigValue<List<? extends String>> MOB_VOICE_CONFIGS;
 
+    public static final ForgeConfigSpec.DoubleValue WHISPER_RANGE_MULTIPLIER;
+    public static final ForgeConfigSpec.DoubleValue WHISPER_SPEED_MULTIPLIER;
+
     static {
-        BUILDER.push("FollowVoiceGoal Config");
+        BUILDER.comment("FollowVoice Config").push("FollowVoice Config");
 
         MOB_VOICE_CONFIGS = BUILDER.comment(
-                "List of mob configurations for FollowVoiceGoal.",
+                "List of mob configurations for FollowVoice.",
                 "Format: 'mob_id=speed=<value>,range=<value>,threshold=<value>'",
-                "Example: 'minecraft:zombie=speed=1.5,range=25,threshold=-10.0'"
+                "Example: 'minecraft:zombie=speed=1.5,range=25,threshold=-10.0'",
+                "The 'threshold' value determines how easily the mob can hear you.",
+                "If it's lower (e.g., -10), it will struggle more to hear you, but if set to -120, the mob will hear you with minimal effort."
         ).defineList(
                 "mob_configs",
                 List.of(
@@ -29,6 +34,24 @@ public class VoiceConfig {
         );
 
         BUILDER.pop();
+
+        BUILDER.comment("Whisper Config").push("Whisper Config");
+
+        WHISPER_RANGE_MULTIPLIER = BUILDER.comment(
+                "Multiplier for detection range when the player is whispering.",
+                "This multiplies the range you have configured for your mobs.",
+                "Example: range=20 x 0.5 = 10"
+        ).defineInRange("whisper_range_multiplier", 0.5, 0.0, 1.0);
+
+        WHISPER_SPEED_MULTIPLIER = BUILDER.comment(
+                "Multiplier for mob speed when the player is whispering.",
+                "This multiplies the speed you have configured for your mobs.",
+                "Example: speed=1.2 x 0.8 = 0.96"
+        ).defineInRange("whisper_speed_multiplier", 0.8, 0.0, 1.0);
+
+
+        BUILDER.pop();
+
         CONFIG = BUILDER.build();
     }
 

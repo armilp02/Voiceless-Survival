@@ -19,9 +19,8 @@ import java.util.concurrent.TimeUnit;
 @Mod.EventBusSubscriber(modid = "ezvcsurvival")
 public class Plugin implements VoicechatPlugin {
 
-    private static final boolean DEBUG = false;
-
-    private static final Map<UUID, BlockPos> playerSoundLocations = new ConcurrentHashMap<>();
+    private static final boolean DEBUG = true;
+    private static final Map<UUID, SoundData> playerSoundLocations = new ConcurrentHashMap<>();
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     private static VoicechatApi voicechatApi;
@@ -70,9 +69,18 @@ public class Plugin implements VoicechatPlugin {
 
     public static BlockPos getLastSoundLocation(BlockPos zombiePosition, double range) {
         return playerSoundLocations.values().stream()
-                .filter(pos -> zombiePosition.distSqr(pos) <= range * range)
-                .min(Comparator.comparingDouble(zombiePosition::distSqr))
+                .filter(data -> zombiePosition.distSqr(data.getPosition()) <= data.getRange() * data.getRange())
+                .min(Comparator.comparingDouble(data -> zombiePosition.distSqr(data.getPosition())))
+                .map(SoundData::getPosition)
                 .orElse(null);
+    }
+
+    public static double getLastSoundSpeed(BlockPos zombiePosition, double range) {
+        return playerSoundLocations.values().stream()
+                .filter(data -> zombiePosition.distSqr(data.getPosition()) <= data.getRange() * data.getRange())
+                .min(Comparator.comparingDouble(data -> zombiePosition.distSqr(data.getPosition())))
+                .map(SoundData::getSpeed)
+                .orElse(1.0);
     }
 
     public void onMicrophonePacket(MicrophonePacketEvent event) {
@@ -88,7 +96,7 @@ public class Plugin implements VoicechatPlugin {
             decoded = decoder.decode(opusEncodedData);
         } catch (Exception e) {
             if (DEBUG) {
-                System.out.println("[DEBUG] Error al decodificar el paquete: " + e.getMessage());
+                System.out.println("[DEBUG] Error decoding packet: " + e.getMessage());
             }
             return;
         }
@@ -105,22 +113,73 @@ public class Plugin implements VoicechatPlugin {
                     (int) Math.floor(voicechatPosition.getZ())
             );
 
+            boolean isWhispering = event.getPacket().isWhispering();
+
+            double whisperRangeMultiplier = VoiceConfig.WHISPER_RANGE_MULTIPLIER.get();
+            double whisperSpeedMultiplier = VoiceConfig.WHISPER_SPEED_MULTIPLIER.get();
+            if (DEBUG) {
+                System.out.println("[DEBUG] Player " + playerUUID + " is " + (isWhispering ? "whispering" : "not whispering"));
+            }
+
             List<String> mobIds = getConfiguredMobIds();
 
             for (String mobId : mobIds) {
                 double threshold = getActivationThreshold(mobId);
+                double detectionRange = getDetectionRange(mobId);
+                double speed = getSpeed(mobId);
 
                 if (audioLevel < threshold) {
                     if (DEBUG) {
-                        System.out.println("[DEBUG] Nivel de audio demasiado bajo para " + mobId + ": " + audioLevel + " dB");
+                        System.out.println("[DEBUG] Audio level too low for " + mobId + ": " + audioLevel + " dB");
                     }
                     continue;
                 }
 
-                playerSoundLocations.put(playerUUID, playerPosition);
+                if (isWhispering) {
+                    detectionRange *= whisperRangeMultiplier; // Reducción significativa al susurrar
+                    speed *= whisperSpeedMultiplier;
 
-                if (DEBUG) {
-                    System.out.println("[DEBUG] Nivel de audio aceptado para " + mobId + ": " + audioLevel + " dB en posición " + playerPosition);
+                    Object minecraftPlayer = sender.getPlayer().getPlayer();
+                    if (minecraftPlayer instanceof net.minecraft.server.level.ServerPlayer player) {
+                        if (player.isCrouching()) {
+                            detectionRange *= 0.3;
+                            if (DEBUG) {
+                                System.out.println("[DEBUG] Player " + playerUUID + " is whispering and crouching. Reduced detection range: " + detectionRange);
+                            }
+                        }
+                    }
+                } else {
+                    speed = getSpeed(mobId);
+                    Object minecraftPlayer = sender.getPlayer().getPlayer();
+                    if (minecraftPlayer instanceof net.minecraft.server.level.ServerPlayer player) {
+                        if (player.isCrouching()) {
+                            detectionRange *= 0.9;
+                            if (DEBUG) {
+                                System.out.println("[DEBUG] Player " + playerUUID + " is talking normally and crouching. Reduced detection range: " + detectionRange);
+                            }
+                        } else {
+                            if (DEBUG) {
+                                System.out.println("[DEBUG] Player " + playerUUID + " is talking normally. Detection range: " + detectionRange);
+                            }
+                        }
+                    }
+                }
+
+
+
+
+                BlockPos senderPosition = new BlockPos(
+                        (int) Math.floor(sender.getPlayer().getPosition().getX()),
+                        (int) Math.floor(sender.getPlayer().getPosition().getY()),
+                        (int) Math.floor(sender.getPlayer().getPosition().getZ())
+                );
+
+                if (playerPosition.distSqr(senderPosition) <= detectionRange * detectionRange) {
+                    playerSoundLocations.put(playerUUID, new SoundData(playerPosition, detectionRange, speed));
+
+                    if (DEBUG) {
+                        System.out.println("[DEBUG] " + mobId + " detects sound at range " + detectionRange + " with speed " + speed + " from position " + playerPosition);
+                    }
                 }
             }
 
@@ -133,7 +192,6 @@ public class Plugin implements VoicechatPlugin {
         return new ArrayList<>(mobConfigs.keySet());
     }
 
-
     private double getActivationThreshold(String mobId) {
         Map<String, Double> mobConfig = VoiceConfig.getMobVoiceConfigs().get(mobId);
         if (mobConfig != null && mobConfig.containsKey("threshold")) {
@@ -141,5 +199,47 @@ public class Plugin implements VoicechatPlugin {
         }
         System.out.println("[VoiceConfig] Mob ID not found or no threshold set: " + mobId);
         return -40.0;
+    }
+
+    private double getDetectionRange(String mobId) {
+        Map<String, Double> mobConfig = VoiceConfig.getMobVoiceConfigs().get(mobId);
+        if (mobConfig != null && mobConfig.containsKey("range")) {
+            return mobConfig.get("range");
+        }
+        System.out.println("[VoiceConfig] Mob ID not found or no range set: " + mobId);
+        return 16.0;
+    }
+
+    private double getSpeed(String mobId) {
+        Map<String, Double> mobConfig = VoiceConfig.getMobVoiceConfigs().get(mobId);
+        if (mobConfig != null && mobConfig.containsKey("speed")) {
+            return mobConfig.get("speed");
+        }
+        System.out.println("[VoiceConfig] Mob ID not found or no speed set: " + mobId);
+        return 1.0;
+    }
+
+    private static class SoundData {
+        private final BlockPos position;
+        private final double range;
+        private final double speed;
+
+        public SoundData(BlockPos position, double range, double speed) {
+            this.position = position;
+            this.range = range;
+            this.speed = speed;
+        }
+
+        public BlockPos getPosition() {
+            return position;
+        }
+
+        public double getRange() {
+            return range;
+        }
+
+        public double getSpeed() {
+            return speed;
+        }
     }
 }

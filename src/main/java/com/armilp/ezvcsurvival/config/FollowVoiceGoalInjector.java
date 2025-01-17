@@ -1,10 +1,10 @@
 package com.armilp.ezvcsurvival.config;
 
 import com.armilp.ezvcsurvival.FollowVoiceGoal;
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Mob;
-import net.minecraftforge.event.entity.EntityJoinLevelEvent;
+import net.minecraftforge.event.entity.EntityJoinWorldEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
@@ -14,11 +14,11 @@ import java.util.Map;
 public class FollowVoiceGoalInjector {
 
     @SubscribeEvent
-    public static void onEntityJoinWorld(EntityJoinLevelEvent event) {
+    public static void onEntityJoinWorld(EntityJoinWorldEvent event) {
         if (!(event.getEntity() instanceof Mob mob)) return;
 
         Map<String, Map<String, Double>> configs = VoiceConfig.getMobVoiceConfigs();
-        ResourceLocation mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType());
+        ResourceLocation mobId = Registry.ENTITY_TYPE.getKey(mob.getType());
 
         if (configs.containsKey(mobId.toString())) {
             Map<String, Double> config = configs.get(mobId.toString());
