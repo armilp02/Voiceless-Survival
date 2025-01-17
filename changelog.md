@@ -1,5 +1,12 @@
 ### Changelog
 
+#### Version 0.1.0
+
+- Updated to version 0.1.0 to reflect significant new features and improvements.
+- Added dynamic adjustments to detection range and mob speed based on player whispering:
+  - Whispering reduces detection range and speed using configurable `whisper_range_multiplier` and `whisper_speed_multiplier`.
+  - Sneaking further reduces detection range when whispering or speaking normally. *(This will be improved with the stealth system update.)*
+
 #### Version 0.0.5
 
 - Fixed a bug where mobs would stay idle at the sound source when the player stopped talking.
