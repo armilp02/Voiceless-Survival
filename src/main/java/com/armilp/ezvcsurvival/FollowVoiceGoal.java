@@ -97,9 +97,8 @@ public class FollowVoiceGoal extends Goal {
             return;
         }
 
-        // Si el jugador está dentro del rango, moverse hacia él
         mob.getNavigation().moveTo(targetPlayer, speedModifier);
-        targetSoundPosition = null; // Ignorar sonidos mientras persigue al jugador
+        targetSoundPosition = null;
     }
 
     private void handleSoundInteraction() {
@@ -126,10 +125,13 @@ public class FollowVoiceGoal extends Goal {
                 moveToSoundPosition();
             }
         }
+
+        double soundSpeed = Plugin.getLastSoundSpeed(mob.blockPosition(), voiceDetectionRange);
+        mob.getNavigation().setSpeedModifier(soundSpeed);
     }
 
     private Player getNearestPlayerInRange() {
-        return mob.level().getNearestPlayer(mob, 5);
+        return mob.level.getNearestPlayer(mob, 5);
     }
 
     private void moveToSoundPosition() {
