@@ -3,6 +3,8 @@ plugins {
     id 'idea'
     id 'maven-publish'
     id 'net.minecraftforge.gradle' version '[6.0,6.2)'
+    id "com.modrinth.minotaur" version "2.+"
+    id 'net.darkhax.curseforgegradle' version '1.1.+'
 }
 
 version = mod_version
@@ -11,6 +13,8 @@ group = mod_group_id
 base {
     archivesName = mod_id
 }
+
+def changelogText = rootProject.file('changelog.md').text
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
@@ -66,6 +70,7 @@ repositories {
         content {
             includeGroup "maven.modrinth"
         }
+
     }
 }
 
@@ -97,7 +102,7 @@ tasks.named('jar', Jar).configure {
         attributes([
                 'Specification-Title'     : mod_id,
                 'Specification-Vendor'    : mod_authors,
-                'Specification-Version'   : '1', // We are version 1 of ourselves
+                'Specification-Version'   : '0.1.0',
                 'Implementation-Title'    : project.name,
                 'Implementation-Version'  : project.jar.archiveVersion,
                 'Implementation-Vendor'   : mod_authors,
@@ -107,6 +112,43 @@ tasks.named('jar', Jar).configure {
 
     finalizedBy 'reobfJar'
 }
+
+tasks.register('publishCurseForge') {
+    apiToken = System.getenv("CURSEFORGE_TOKEN")
+
+    def mainFile = upload('1173633', file("build/libs/${mod_id}-${mod_version}.jar"))
+    mainFile.displayName = "${mod_name}${mod_version} (Forge)"
+    mainFile.releaseType = 'beta'
+    mainFile.changelog = changelogText
+    mainFile.changelogType = "markdown"
+
+    mainFile.addRequirement("simple-voice-chat")
+}
+
+
+modrinth {
+    token = System.getenv("MODRINTH_TOKEN")
+    projectId = "voiceless-survival"
+    versionName = "${mod_name} ${mod_version} Forge"
+    versionNumber = "${mod_version}"
+    versionType = "beta"
+    uploadFile = file("build/libs/${mod_id}-${mod_version}.jar")
+    gameVersions = ["${minecraft_version}"] as Iterable<? extends String>
+    loaders = ["forge"]
+    changelog = changelogText
+
+
+    dependencies {
+        required.project 'simple-voice-chat'
+    }
+}
+
+tasks.register('publicModdedSite') {
+//    dependsOn 'build'
+    dependsOn 'publishCurseForge'
+    dependsOn 'modrinth'
+}
+
 
 publishing {
     publications {
