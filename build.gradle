@@ -3,6 +3,8 @@ plugins {
     id 'idea'
     id 'maven-publish'
     id 'net.minecraftforge.gradle' version '[6.0,6.2)'
+    id "com.modrinth.minotaur" version "2.+"
+    id 'net.darkhax.curseforgegradle' version '1.1.+'
 }
 
 version = mod_version
@@ -11,6 +13,8 @@ group = mod_group_id
 base {
     archivesName = mod_id
 }
+
+def changelogText = rootProject.file('changelog.md').text
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
@@ -27,6 +31,8 @@ minecraft {
             property 'forge.logging.markers', 'REGISTRIES'
 
             property 'forge.logging.console.level', 'debug'
+
+            property 'forge.enabledGameTestNamespaces', mod_id
 
             mods {
                 "${mod_id}" {
@@ -92,12 +98,13 @@ tasks.named('processResources', ProcessResources).configure {
     }
 }
 
+// Example for how to get properties into the manifest for reading at runtime.
 tasks.named('jar', Jar).configure {
     manifest {
         attributes([
                 'Specification-Title'     : mod_id,
                 'Specification-Vendor'    : mod_authors,
-                'Specification-Version'   : '1', // We are version 1 of ourselves
+                'Specification-Version'   : '0.1.0',
                 'Implementation-Title'    : project.name,
                 'Implementation-Version'  : project.jar.archiveVersion,
                 'Implementation-Vendor'   : mod_authors,
@@ -106,6 +113,41 @@ tasks.named('jar', Jar).configure {
     }
 
     finalizedBy 'reobfJar'
+}
+
+tasks.register('publishCurseForge') {
+    apiToken = System.getenv("CURSEFORGE_TOKEN")
+
+    def mainFile = upload('1173633', file("build/libs/${mod_id}-${mod_version}.jar"))
+    mainFile.displayName = "${mod_name}${mod_version} (Forge)"
+    mainFile.releaseType = 'beta'
+    mainFile.changelog = changelogText
+    mainFile.changelogType = "markdown"
+
+    mainFile.addRequirement("simple-voice-chat")
+}
+
+modrinth {
+    token = System.getenv("MODRINTH_TOKEN")
+    projectId = "voiceless-survival"
+    versionName = "${mod_name} ${mod_version} Forge"
+    versionNumber = "${mod_version}"
+    versionType = "beta"
+    uploadFile = file("build/libs/${mod_id}-${mod_version}.jar")
+    gameVersions = ["${minecraft_version}"] as Iterable<? extends String>
+    loaders = ["forge"]
+    changelog = changelogText
+
+
+    dependencies { // A special DSL for creating dependencies
+        required.project 'simple-voice-chat'
+    }
+}
+
+tasks.register('publicModdedSite') {
+//    dependsOn 'build'
+    dependsOn 'publishCurseForge'
+    dependsOn 'modrinth'
 }
 
 publishing {
@@ -122,5 +164,5 @@ publishing {
 }
 
 tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8'
+    options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
 }
