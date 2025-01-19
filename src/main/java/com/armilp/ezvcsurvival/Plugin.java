@@ -5,6 +5,9 @@ import de.maxhenkel.voicechat.api.events.EventRegistration;
 import de.maxhenkel.voicechat.api.events.MicrophonePacketEvent;
 import de.maxhenkel.voicechat.api.opus.OpusDecoder;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.phys.AABB;
 import net.minecraftforge.fml.common.Mod;
 import com.armilp.ezvcsurvival.config.VoiceConfig;
 
@@ -19,7 +22,7 @@ import java.util.concurrent.TimeUnit;
 @Mod.EventBusSubscriber(modid = "ezvcsurvival")
 public class Plugin implements VoicechatPlugin {
 
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
     private static final Map<UUID, SoundData> playerSoundLocations = new ConcurrentHashMap<>();
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
@@ -95,9 +98,6 @@ public class Plugin implements VoicechatPlugin {
         try {
             decoded = decoder.decode(opusEncodedData);
         } catch (Exception e) {
-            if (DEBUG) {
-                System.out.println("[DEBUG] Error decoding packet: " + e.getMessage());
-            }
             return;
         }
 
@@ -117,9 +117,8 @@ public class Plugin implements VoicechatPlugin {
 
             double whisperRangeMultiplier = VoiceConfig.WHISPER_RANGE_MULTIPLIER.get();
             double whisperSpeedMultiplier = VoiceConfig.WHISPER_SPEED_MULTIPLIER.get();
-            if (DEBUG) {
-                System.out.println("[DEBUG] Player " + playerUUID + " is " + (isWhispering ? "whispering" : "not whispering"));
-            }
+            double thunderRangeMultiplier = VoiceConfig.THUNDER_RANGE_MULTIPLIER.get();
+            double sneakingRangeMultiplier = VoiceConfig.SNEAKING_RANGE_MULTIPLIER.get();
 
             List<String> mobIds = getConfiguredMobIds();
 
@@ -128,13 +127,6 @@ public class Plugin implements VoicechatPlugin {
                 double detectionRange = getDetectionRange(mobId);
                 double speed = getSpeed(mobId);
 
-                if (audioLevel < threshold) {
-                    if (DEBUG) {
-                        System.out.println("[DEBUG] Audio level too low for " + mobId + ": " + audioLevel + " dB");
-                    }
-                    continue;
-                }
-
                 if (isWhispering) {
                     detectionRange *= whisperRangeMultiplier;
                     speed *= whisperSpeedMultiplier;
@@ -142,37 +134,44 @@ public class Plugin implements VoicechatPlugin {
                     Object minecraftPlayer = sender.getPlayer().getPlayer();
                     if (minecraftPlayer instanceof net.minecraft.server.level.ServerPlayer player) {
                         if (player.isCrouching()) {
-                            detectionRange *= 0.3;
-                            if (DEBUG) {
-                                System.out.println("[DEBUG] Player " + playerUUID + " is whispering and crouching. Reduced detection range: " + detectionRange);
-                            }
+                            detectionRange *= sneakingRangeMultiplier;
+                        }
+
+                        if (player.level().isRaining() || player.level().isThundering()) {
+                            detectionRange *= thunderRangeMultiplier;
                         }
                     }
                 } else {
-                    speed = getSpeed(mobId);
                     Object minecraftPlayer = sender.getPlayer().getPlayer();
                     if (minecraftPlayer instanceof net.minecraft.server.level.ServerPlayer player) {
                         if (player.isCrouching()) {
-                            detectionRange *= 0.9;
-                            if (DEBUG) {
-                                System.out.println("[DEBUG] Player " + playerUUID + " is talking normally and crouching. Reduced detection range: " + detectionRange);
-                            }
-                        } else {
-                            if (DEBUG) {
-                                System.out.println("[DEBUG] Player " + playerUUID + " is talking normally. Detection range: " + detectionRange);
-                            }
+                            detectionRange *= sneakingRangeMultiplier;
+                        }
+                        if (player.level().isRaining() || player.level().isThundering()) {
+                            detectionRange *= thunderRangeMultiplier;
                         }
                     }
                 }
-
-
-
 
                 BlockPos senderPosition = new BlockPos(
                         (int) Math.floor(sender.getPlayer().getPosition().getX()),
                         (int) Math.floor(sender.getPlayer().getPosition().getY()),
                         (int) Math.floor(sender.getPlayer().getPosition().getZ())
                 );
+
+                double distance = Math.sqrt(playerPosition.distSqr(senderPosition));
+                double perceivedIntensity = audioLevel - 20 * Math.log10(distance + 1);
+
+                if (DEBUG) {
+                    System.out.println("[DEBUG] Perceived Intensity for " + mobId + ": " + perceivedIntensity + " dB at distance " + distance);
+                }
+
+                if (perceivedIntensity < threshold) {
+                    if (DEBUG) {
+                        System.out.println("[DEBUG] Intensity too low for " + mobId + ": " + perceivedIntensity + " dB");
+                    }
+                    continue;
+                }
 
                 if (playerPosition.distSqr(senderPosition) <= detectionRange * detectionRange) {
                     playerSoundLocations.put(playerUUID, new SoundData(playerPosition, detectionRange, speed));
@@ -182,8 +181,6 @@ public class Plugin implements VoicechatPlugin {
                     }
                 }
             }
-
-            scheduler.schedule(() -> playerSoundLocations.remove(playerUUID), 5, TimeUnit.SECONDS);
         }
     }
 
@@ -197,7 +194,6 @@ public class Plugin implements VoicechatPlugin {
         if (mobConfig != null && mobConfig.containsKey("threshold")) {
             return mobConfig.get("threshold");
         }
-        System.out.println("[VoiceConfig] Mob ID not found or no threshold set: " + mobId);
         return -40.0;
     }
 
@@ -206,7 +202,6 @@ public class Plugin implements VoicechatPlugin {
         if (mobConfig != null && mobConfig.containsKey("range")) {
             return mobConfig.get("range");
         }
-        System.out.println("[VoiceConfig] Mob ID not found or no range set: " + mobId);
         return 16.0;
     }
 
@@ -215,7 +210,6 @@ public class Plugin implements VoicechatPlugin {
         if (mobConfig != null && mobConfig.containsKey("speed")) {
             return mobConfig.get("speed");
         }
-        System.out.println("[VoiceConfig] Mob ID not found or no speed set: " + mobId);
         return 1.0;
     }
 
