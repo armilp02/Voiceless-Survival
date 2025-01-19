@@ -12,11 +12,15 @@ public class VoiceConfig {
 
     private static final ForgeConfigSpec.ConfigValue<List<? extends String>> MOB_VOICE_CONFIGS;
 
+
     public static final ForgeConfigSpec.DoubleValue WHISPER_RANGE_MULTIPLIER;
     public static final ForgeConfigSpec.DoubleValue WHISPER_SPEED_MULTIPLIER;
 
+    public static final ForgeConfigSpec.DoubleValue THUNDER_RANGE_MULTIPLIER;
+    public static final ForgeConfigSpec.DoubleValue SNEAKING_RANGE_MULTIPLIER;
+
     static {
-        BUILDER.comment("FollowVoice Config").push("FollowVoice Config");
+        BUILDER.push("FollowVoice Config");
 
         MOB_VOICE_CONFIGS = BUILDER.comment(
                 "List of mob configurations for FollowVoice.",
@@ -35,7 +39,7 @@ public class VoiceConfig {
 
         BUILDER.pop();
 
-        BUILDER.comment("Whisper Config").push("Whisper Config");
+        BUILDER.push("Whisper Config");
 
         WHISPER_RANGE_MULTIPLIER = BUILDER.comment(
                 "Multiplier for detection range when the player is whispering.",
@@ -51,6 +55,15 @@ public class VoiceConfig {
 
 
         BUILDER.pop();
+
+        BUILDER.push("Misc Config");
+
+        THUNDER_RANGE_MULTIPLIER = BUILDER.comment(
+                "Multiplier for detection range when it is raining or during a thunderstorm (reduces the range)."
+        ).defineInRange("thunder_range_multiplier", 0.5, 0.0, 1.0);
+        SNEAKING_RANGE_MULTIPLIER = BUILDER.comment(
+                "Multiplier for detection range when the player is sneaking/crouching (reduces the range)."
+        ).defineInRange("sneaking_range_multiplier", 0.5, 0.0, 1.0);
 
         CONFIG = BUILDER.build();
     }
