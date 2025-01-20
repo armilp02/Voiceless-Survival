@@ -3,7 +3,7 @@ loaderVersion="${loader_version_range}"
 license="All Rights Reserved by armilp"
 [[mods]]
 modId="ezvcsurvival"
-version="0.2.0"
+version="0.2.1"
 displayName="Voiceless Survival"
 authors="armilp"
 description='''${mod_description}'''
@@ -22,6 +22,6 @@ description='''${mod_description}'''
 [[dependencies.ezvcsurvival]]
 modId="voicechat"
 mandatory=true
-versionRange="[1.18.2-2.5.27,)"
+versionRange="[1.18.2-2.5.0,)"
 ordering="AFTER"
 side="BOTH"
