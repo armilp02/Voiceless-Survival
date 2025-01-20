@@ -1,3 +1,5 @@
+import net.darkhax.curseforgegradle.TaskPublishCurseForge
+
 plugins {
     id 'eclipse'
     id 'idea'
@@ -104,14 +106,13 @@ tasks.named('jar', Jar).configure {
     }
 }
 
-tasks.register('publishCurseForge') {
+tasks.register('publishCurseForge', TaskPublishCurseForge) {
     apiToken = System.getenv("CURSEFORGE_TOKEN")
 
     def mainFile = upload('1173633', file("build/libs/${mod_id}-${mod_version}.jar"))
-    mainFile.displayName = "${mod_name}${mod_version} (Forge)"
+    mainFile.displayName = "${mod_name}-${mod_version} (Forge)"
     mainFile.releaseType = 'beta'
     mainFile.changelog = changelogText
-    mainFile.changelogType = "markdown"
 
     mainFile.addRequirement("simple-voice-chat")
 }
@@ -134,7 +135,7 @@ modrinth {
 }
 
 tasks.register('publicModdedSite') {
-//    dependsOn 'build'
+    // dependsOn 'build'
     dependsOn 'publishCurseForge'
     dependsOn 'modrinth'
 }
