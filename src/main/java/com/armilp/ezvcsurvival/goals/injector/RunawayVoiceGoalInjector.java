@@ -1,18 +1,16 @@
 package com.armilp.ezvcsurvival.goals.injector;
 
 import com.armilp.ezvcsurvival.config.VoiceConfig;
-import com.armilp.ezvcsurvival.goals.FollowVoiceGoal;
 import com.armilp.ezvcsurvival.goals.RunawayVoiceGoal;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.animal.Animal;
-import net.minecraftforge.event.entity.EntityJoinLevelEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 
 import java.util.Map;
 
-@Mod.EventBusSubscriber(modid = "ezvcsurvival")
 public class RunawayVoiceGoalInjector {
 
     @SubscribeEvent
@@ -29,7 +27,6 @@ public class RunawayVoiceGoalInjector {
         int range = mobConfig.getOrDefault("range", 16.0).intValue();
         double threshold = mobConfig.getOrDefault("threshold", -40.0);
 
-        animal.goalSelector.addGoal(1, new FollowVoiceGoal(animal, speed, range, threshold));
-
+        animal.goalSelector.addGoal(1, new RunawayVoiceGoal(animal, speed, range, threshold));
     }
 }

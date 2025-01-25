@@ -7,8 +7,8 @@ import de.maxhenkel.voicechat.api.events.MicrophonePacketEvent;
 import de.maxhenkel.voicechat.api.opus.OpusDecoder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.fml.common.Mod;
 import com.armilp.ezvcsurvival.config.VoiceConfig;
+import net.neoforged.fml.common.Mod;
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -18,7 +18,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 @ForgeVoicechatPlugin
-@Mod.EventBusSubscriber(modid = "ezvcsurvival")
+@Mod(EZVCSurvival.MOD_ID)
 public class Plugin implements VoicechatPlugin {
 
     private static final boolean DEBUG = true;
