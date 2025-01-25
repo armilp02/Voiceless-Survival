@@ -1,6 +1,16 @@
 ### Changelog
 
-### Version 0.2.0
+#### Version 0.4.1
+
+- Organized the project structure to improve maintainability.
+- Added "Flee" mechanic, enhancing gameplay dynamics.
+
+#### Version 0.2.1
+
+- Now mobs ignore you in creative mode
+- Improved Voicechat API Compatibility (2.5.0)
+
+#### Version 0.2.0
 
 - Sneaking reduces detection range (configurable via `sneaking_range_multiplier`).
 - Rain and thunderstorms reduce detection range (configurable via `thunder_range_multiplier`).
@@ -12,7 +22,6 @@
 - Added dynamic adjustments to detection range and mob speed based on player whispering:
   - Whispering reduces detection range and speed using configurable `whisper_range_multiplier` and `whisper_speed_multiplier`.
   - Sneaking further reduces detection range when whispering or speaking normally. *(This will be improved with the stealth system update.)*
-- Ported the mod to Minecraft 1.21.1
 
 #### Version 0.0.5
 
