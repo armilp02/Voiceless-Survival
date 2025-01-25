@@ -11,6 +11,7 @@ public class VoiceConfig {
     public static final ForgeConfigSpec CONFIG;
 
     private static final ForgeConfigSpec.ConfigValue<List<? extends String>> MOB_VOICE_CONFIGS;
+    private static final ForgeConfigSpec.ConfigValue<List<? extends String>> ANIMAL_VOICE_CONFIGS;
 
 
     public static final ForgeConfigSpec.DoubleValue WHISPER_RANGE_MULTIPLIER;
@@ -37,6 +38,19 @@ public class VoiceConfig {
                 obj -> obj instanceof String && ((String) obj).contains("=")
         );
 
+        ANIMAL_VOICE_CONFIGS = BUILDER.comment(
+                "List of mob configurations for RunawayVoiceGoal.",
+                "Format: 'animal_id=speed=<value>,range=<value>,threshold=<value>'",
+                "Example: 'minecraft:cow=speed=1.0,range=15,threshold=-25.0'"
+        ).defineList(
+                "animal_configs",
+                List.of(
+                        "minecraft:cow=speed=1.5,range=15,threshold=-45.0",
+                        "minecraft:pig=speed=1.2,range=5,threshold=-45.0"
+                ),
+                obj -> obj instanceof String && ((String)obj).contains("=")
+        );
+
         BUILDER.pop();
 
         BUILDER.push("Whisper Config");
@@ -53,7 +67,6 @@ public class VoiceConfig {
                 "Example: speed=1.2 x 0.8 = 0.96"
         ).defineInRange("whisper_speed_multiplier", 0.8, 0.0, 1.0);
 
-
         BUILDER.pop();
 
         BUILDER.push("Misc Config");
@@ -61,6 +74,7 @@ public class VoiceConfig {
         THUNDER_RANGE_MULTIPLIER = BUILDER.comment(
                 "Multiplier for detection range when it is raining or during a thunderstorm (reduces the range)."
         ).defineInRange("thunder_range_multiplier", 0.5, 0.0, 1.0);
+
         SNEAKING_RANGE_MULTIPLIER = BUILDER.comment(
                 "Multiplier for detection range when the player is sneaking/crouching (reduces the range)."
         ).defineInRange("sneaking_range_multiplier", 0.5, 0.0, 1.0);
@@ -68,9 +82,36 @@ public class VoiceConfig {
         CONFIG = BUILDER.build();
     }
 
+
+
     public static Map<String, Map<String, Double>> getMobVoiceConfigs() {
         Map<String, Map<String, Double>> parsedConfigs = new HashMap<>();
         for (String config : MOB_VOICE_CONFIGS.get()) {
+            String[] parts = config.split("=", 2);
+            if (parts.length == 2) {
+                String mobId = parts[0];
+                String[] attributes = parts[1].split(",");
+
+                Map<String, Double> mobConfig = new HashMap<>();
+                for (String attribute : attributes) {
+                    String[] keyValue = attribute.split("=");
+                    if (keyValue.length == 2) {
+                        try {
+                            mobConfig.put(keyValue[0].trim(), Double.parseDouble(keyValue[1].trim()));
+                        } catch (NumberFormatException e) {
+                            System.err.println("[VoiceConfig] Invalid number format in: " + attribute);
+                        }
+                    }
+                }
+                parsedConfigs.put(mobId, mobConfig);
+            }
+        }
+        return parsedConfigs;
+    }
+
+    public static Map<String, Map<String, Double>> getAnimalVoiceConfigs() {
+        Map<String, Map<String, Double>> parsedConfigs = new HashMap<>();
+        for (String config : ANIMAL_VOICE_CONFIGS.get()) {
             String[] parts = config.split("=", 2);
             if (parts.length == 2) {
                 String mobId = parts[0];
