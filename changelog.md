@@ -5,6 +5,7 @@
 - Organized the project structure to improve maintainability.
 - Added "Flee" mechanic, enhancing gameplay dynamics.
 
+
 #### Version 0.2.1
 
 - Now mobs ignore you in creative mode
