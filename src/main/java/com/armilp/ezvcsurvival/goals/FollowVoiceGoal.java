@@ -1,5 +1,6 @@
-package com.armilp.ezvcsurvival;
+package com.armilp.ezvcsurvival.goals;
 
+import com.armilp.ezvcsurvival.Plugin;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.goal.Goal;
