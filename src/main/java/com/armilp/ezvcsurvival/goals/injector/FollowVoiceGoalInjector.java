@@ -1,6 +1,7 @@
-package com.armilp.ezvcsurvival.config;
+package com.armilp.ezvcsurvival.goals.injector;
 
-import com.armilp.ezvcsurvival.FollowVoiceGoal;
+import com.armilp.ezvcsurvival.config.VoiceConfig;
+import com.armilp.ezvcsurvival.goals.FollowVoiceGoal;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Mob;

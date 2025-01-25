@@ -1,5 +1,6 @@
 package com.armilp.ezvcsurvival;
 
+import com.armilp.ezvcsurvival.data.SoundData;
 import de.maxhenkel.voicechat.api.*;
 import de.maxhenkel.voicechat.api.events.EventRegistration;
 import de.maxhenkel.voicechat.api.events.MicrophonePacketEvent;
@@ -20,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 @Mod.EventBusSubscriber(modid = "ezvcsurvival")
 public class Plugin implements VoicechatPlugin {
 
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = true;
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private static final Map<UUID, SoundData> playerSoundLocations = new ConcurrentHashMap<>();
 
@@ -130,6 +131,65 @@ public class Plugin implements VoicechatPlugin {
         double sneakingRangeMultiplier = VoiceConfig.SNEAKING_RANGE_MULTIPLIER.get();
 
         List<String> mobIds = getConfiguredMobIds();
+        List<String> animalIds = getConfiguredAnimalIds();
+
+        for (String animalId : animalIds) {
+            double threshold = getActivationThreshold(animalId);
+            double detectionRange = getDetectionRange(animalId);
+            double speed = getSpeed(animalId);
+
+            if (isWhispering) {
+                detectionRange *= whisperRangeMultiplier;
+                speed *= whisperSpeedMultiplier;
+
+                if (sender.getPlayer().getPlayer() instanceof net.minecraft.server.level.ServerPlayer player) {
+                    if (player.isCrouching()) {
+                        detectionRange *= sneakingRangeMultiplier;
+                    }
+
+                    if (player.level.isRaining() || player.level.isThundering()) {
+                        detectionRange *= thunderRangeMultiplier;
+                    }
+                }
+            } else {
+                if (sender.getPlayer().getPlayer() instanceof net.minecraft.server.level.ServerPlayer player) {
+                    if (player.isCrouching()) {
+                        detectionRange *= sneakingRangeMultiplier;
+                    }
+                    if (player.level.isRaining() || player.level.isThundering()) {
+                        detectionRange *= thunderRangeMultiplier;
+                    }
+                }
+            }
+
+            BlockPos senderPosition = new BlockPos(
+                    (int) Math.floor(sender.getPlayer().getPosition().getX()),
+                    (int) Math.floor(sender.getPlayer().getPosition().getY()),
+                    (int) Math.floor(sender.getPlayer().getPosition().getZ())
+            );
+
+            double distance = Math.sqrt(playerPosition.distSqr(senderPosition));
+            double perceivedIntensity = audioLevel - 20 * Math.log10(distance + 1);
+
+            if (DEBUG) {
+                System.out.println("[DEBUG] Perceived Intensity for " + animalId + ": " + perceivedIntensity + " dB at distance " + distance);
+            }
+
+            if (perceivedIntensity < threshold) {
+                if (DEBUG) {
+                    System.out.println("[DEBUG] Intensity too low for " + animalId + ": " + perceivedIntensity + " dB");
+                }
+                continue;
+            }
+
+            if (playerPosition.distSqr(senderPosition) <= detectionRange * detectionRange) {
+                playerSoundLocations.put(playerUUID, new SoundData(playerPosition, detectionRange, speed));
+
+                if (DEBUG) {
+                    System.out.println("[DEBUG] " + animalId + " detects sound at range " + detectionRange + " with speed " + speed + " from position " + playerPosition);
+                }
+            }
+        }
 
         for (String mobId : mobIds) {
             double threshold = getActivationThreshold(mobId);
@@ -199,6 +259,11 @@ public class Plugin implements VoicechatPlugin {
         return new ArrayList<>(mobConfigs.keySet());
     }
 
+    private List<String> getConfiguredAnimalIds() {
+        Map<String, Map<String, Double>> mobConfigs = VoiceConfig.getAnimalVoiceConfigs();
+        return new ArrayList<>(mobConfigs.keySet());
+    }
+
     private double getActivationThreshold(String mobId) {
         Map<String, Double> mobConfig = VoiceConfig.getMobVoiceConfigs().get(mobId);
         if (mobConfig != null && mobConfig.containsKey("threshold")) {
@@ -221,29 +286,5 @@ public class Plugin implements VoicechatPlugin {
             return mobConfig.get("speed");
         }
         return 1.0;
-    }
-
-    private static class SoundData {
-        private final BlockPos position;
-        private final double range;
-        private final double speed;
-
-        public SoundData(BlockPos position, double range, double speed) {
-            this.position = position;
-            this.range = range;
-            this.speed = speed;
-        }
-
-        public BlockPos getPosition() {
-            return position;
-        }
-
-        public double getRange() {
-            return range;
-        }
-
-        public double getSpeed() {
-            return speed;
-        }
     }
 }
