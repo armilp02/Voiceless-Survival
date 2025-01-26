@@ -29,7 +29,7 @@ public class RunawayVoiceGoalInjector {
         int range = mobConfig.getOrDefault("range", 16.0).intValue();
         double threshold = mobConfig.getOrDefault("threshold", -40.0);
 
-        animal.goalSelector.addGoal(1, new FollowVoiceGoal(animal, speed, range, threshold));
+        animal.goalSelector.addGoal(1, new RunawayVoiceGoal(animal, speed, range, threshold));
 
     }
 }
