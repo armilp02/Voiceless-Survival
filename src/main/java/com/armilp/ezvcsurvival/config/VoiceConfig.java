@@ -2,6 +2,7 @@ package com.armilp.ezvcsurvival.config;
 
 import net.minecraftforge.common.ForgeConfigSpec;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,7 +32,7 @@ public class VoiceConfig {
                 "If it's lower (e.g., -10), it will struggle more to hear you, but if set to -120, the mob will hear you with minimal effort."
         ).defineList(
                 "mob_configs",
-                List.of(
+                Arrays.asList(
                         "minecraft:zombie=speed=1.5,range=20,threshold=-40.0",
                         "minecraft:skeleton=speed=1.2,range=15,threshold=-35.0"
                 ),
@@ -44,7 +45,7 @@ public class VoiceConfig {
                 "Example: 'minecraft:cow=speed=1.0,range=15,threshold=-25.0'"
         ).defineList(
                 "animal_configs",
-                List.of(
+                Arrays.asList(
                         "minecraft:cow=speed=1.5,range=15,threshold=-45.0",
                         "minecraft:pig=speed=1.2,range=5,threshold=-45.0"
                 ),

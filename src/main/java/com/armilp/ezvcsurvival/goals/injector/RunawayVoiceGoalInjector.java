@@ -2,9 +2,9 @@ package com.armilp.ezvcsurvival.goals.injector;
 
 import com.armilp.ezvcsurvival.config.VoiceConfig;
 import com.armilp.ezvcsurvival.goals.RunawayVoiceGoal;
-import net.minecraft.core.Registry;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.entity.passive.AnimalEntity;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.registry.Registry;
 import net.minecraftforge.event.entity.EntityJoinWorldEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -16,7 +16,11 @@ public class RunawayVoiceGoalInjector {
 
     @SubscribeEvent
     public static void onEntityJoinWorld(EntityJoinWorldEvent event) {
-        if (!(event.getEntity() instanceof Animal animal)) return;
+        if (!(event.getEntity() instanceof AnimalEntity)) {
+            return; // Verifica si la entidad es un AnimalEntity
+        }
+
+        AnimalEntity animal = (AnimalEntity) event.getEntity(); // Cast explícito
 
         Map<String, Map<String, Double>> configs = VoiceConfig.getAnimalVoiceConfigs();
         ResourceLocation animalId = Registry.ENTITY_TYPE.getKey(animal.getType());

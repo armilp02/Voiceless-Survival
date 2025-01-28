@@ -5,8 +5,8 @@ import de.maxhenkel.voicechat.api.*;
 import de.maxhenkel.voicechat.api.events.EventRegistration;
 import de.maxhenkel.voicechat.api.events.MicrophonePacketEvent;
 import de.maxhenkel.voicechat.api.opus.OpusDecoder;
-import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.fml.common.Mod;
 import com.armilp.ezvcsurvival.config.VoiceConfig;
 
@@ -93,7 +93,8 @@ public class Plugin implements VoicechatPlugin {
         }
 
         // Check if the player is in creative mode
-        if (sender.getPlayer().getPlayer() instanceof ServerPlayer player) {
+        if (sender.getPlayer().getPlayer() instanceof ServerPlayerEntity) {
+            ServerPlayerEntity player = (ServerPlayerEntity) sender.getPlayer().getPlayer();
             if (player.isCreative()) {
                 return; // Cancel processing if the player is in creative mode
             }
@@ -142,7 +143,8 @@ public class Plugin implements VoicechatPlugin {
                 detectionRange *= whisperRangeMultiplier;
                 speed *= whisperSpeedMultiplier;
 
-                if (sender.getPlayer().getPlayer() instanceof net.minecraft.server.level.ServerPlayer player) {
+                if (sender.getPlayer().getPlayer() instanceof ServerPlayerEntity) {
+                    ServerPlayerEntity player = (ServerPlayerEntity) sender.getPlayer().getPlayer();
                     if (player.isCrouching()) {
                         detectionRange *= sneakingRangeMultiplier;
                     }
@@ -152,7 +154,8 @@ public class Plugin implements VoicechatPlugin {
                     }
                 }
             } else {
-                if (sender.getPlayer().getPlayer() instanceof net.minecraft.server.level.ServerPlayer player) {
+                if (sender.getPlayer().getPlayer() instanceof ServerPlayerEntity) {
+                    ServerPlayerEntity player = (ServerPlayerEntity) sender.getPlayer().getPlayer();
                     if (player.isCrouching()) {
                         detectionRange *= sneakingRangeMultiplier;
                     }
@@ -200,8 +203,8 @@ public class Plugin implements VoicechatPlugin {
                 detectionRange *= whisperRangeMultiplier;
                 speed *= whisperSpeedMultiplier;
 
-                Object minecraftPlayer = sender.getPlayer().getPlayer();
-                if (minecraftPlayer instanceof net.minecraft.server.level.ServerPlayer player) {
+                if (sender.getPlayer().getPlayer() instanceof ServerPlayerEntity) {
+                    ServerPlayerEntity player = (ServerPlayerEntity) sender.getPlayer().getPlayer();
                     if (player.isCrouching()) {
                         detectionRange *= sneakingRangeMultiplier;
                     }
@@ -211,8 +214,8 @@ public class Plugin implements VoicechatPlugin {
                     }
                 }
             } else {
-                Object minecraftPlayer = sender.getPlayer().getPlayer();
-                if (minecraftPlayer instanceof net.minecraft.server.level.ServerPlayer player) {
+                if (sender.getPlayer().getPlayer() instanceof ServerPlayerEntity) {
+                    ServerPlayerEntity player = (ServerPlayerEntity) sender.getPlayer().getPlayer();
                     if (player.isCrouching()) {
                         detectionRange *= sneakingRangeMultiplier;
                     }

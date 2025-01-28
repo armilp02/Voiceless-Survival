@@ -1,26 +1,28 @@
 package com.armilp.ezvcsurvival.goals;
 
 import com.armilp.ezvcsurvival.Plugin;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.ai.goal.Goal;
-import net.minecraft.world.entity.player.Player;
+import de.maxhenkel.voicechat.api.Player;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.MobEntity;
+import net.minecraft.entity.ai.goal.Goal;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.util.math.BlockPos;
 
 import java.util.EnumSet;
 
 public class FollowVoiceGoal extends Goal {
 
-    private final Mob mob;
+    private final MobEntity mob;
     private final double speedModifier;
     private final int voiceDetectionRange;
-    private Player targetPlayer;
+    private PlayerEntity targetPlayer;
     private final double threshold;
     private BlockPos targetSoundPosition;
     private long timePlayerInRange;
     private long lastAttackTime = 0;
     private final long attackCooldown = 2000;
 
-    public FollowVoiceGoal(Mob mob, double speedModifier, int detectionRange, double threshold) {
+    public FollowVoiceGoal(MobEntity mob, double speedModifier, int detectionRange, double threshold) {
         this.mob = mob;
         this.speedModifier = speedModifier;
         this.voiceDetectionRange = detectionRange;
@@ -131,7 +133,7 @@ public class FollowVoiceGoal extends Goal {
         mob.getNavigation().setSpeedModifier(soundSpeed);
     }
 
-    private Player getNearestPlayerInRange() {
+    private PlayerEntity getNearestPlayerInRange() {
         return mob.level.getNearestPlayer(mob, 5);
     }
 

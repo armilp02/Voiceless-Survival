@@ -1,5 +1,3 @@
-import net.darkhax.curseforgegradle.TaskPublishCurseForge
-
 plugins {
     id 'eclipse'
     id 'idea'
@@ -18,7 +16,7 @@ base {
 
 def changelogText = rootProject.file('changelog.md').text
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+java.toolchain.languageVersion = JavaLanguageVersion.of(8)
 
 println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}"
 minecraft {
@@ -82,7 +80,6 @@ dependencies {
 
     implementation "de.maxhenkel.voicechat:voicechat-api:${voicechat_api_version}"
     runtimeOnly fg.deobf("maven.modrinth:simple-voice-chat:forge-${voicechat_version}")
-
 }
 
 tasks.named('processResources', ProcessResources).configure {
@@ -117,18 +114,18 @@ tasks.named('jar', Jar).configure {
     finalizedBy 'reobfJar'
 }
 
-tasks.register('publishCurseForge', TaskPublishCurseForge) {
-    dependsOn jar // Asegura que la tarea `:jar` se ejecute antes
-
-    apiToken = System.getenv("CURSEFORGE_TOKEN")
-
-    def mainFile = upload('1173633', file("build/libs/${mod_id}-${mod_version}.jar"))
-    mainFile.displayName = "${mod_name}-${mod_version}"
-    mainFile.releaseType = 'beta'
-    mainFile.changelog = changelogText
-
-    mainFile.addRequirement("simple-voice-chat")
-}
+//tasks.register('publishCurseForge', TaskPublishCurseForge) {
+//    dependsOn jar // Asegura que la tarea `:jar` se ejecute antes
+//
+//    apiToken = System.getenv("CURSEFORGE_TOKEN")
+//
+//    def mainFile = upload('1173633', file("build/libs/${mod_id}-${mod_version}.jar"))
+//    mainFile.displayName = "${mod_name}-${mod_version}"
+//    mainFile.releaseType = 'beta'
+//    mainFile.changelog = changelogText
+//
+//    mainFile.addRequirement("simple-voice-chat")
+//}
 
 
 modrinth {
@@ -149,9 +146,9 @@ modrinth {
 }
 
 tasks.register('publicModdedSite') {
-    // dependsOn 'build'
+    dependsOn 'build'
     dependsOn 'publishCurseForge'
-    //dependsOn 'modrinth'
+    dependsOn 'modrinth'
 }
 
 publishing {

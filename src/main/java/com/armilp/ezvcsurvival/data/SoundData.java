@@ -1,6 +1,7 @@
 package com.armilp.ezvcsurvival.data;
 
-import net.minecraft.core.BlockPos;
+
+import net.minecraft.util.math.BlockPos;
 
 public  class SoundData {
         private final BlockPos position;
