@@ -15,7 +15,7 @@ description = '''
 A survival mod for Minecraft with voice chat integration and enhanced gameplay.
 '''
 
-authors = "Your Name or Team Name"
+authors = "armilp"
 
 # Dependency for NeoForge loader
 [[dependencies.ezvcsurvival]]
