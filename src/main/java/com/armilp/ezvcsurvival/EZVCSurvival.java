@@ -23,12 +23,8 @@ public class EZVCSurvival {
 
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, VoiceConfig.CONFIG);
 
-        // Registra eventos
         modEventBus.addListener(this::commonSetup);
-        // Registro en Forge Event Bus
         MinecraftForge.EVENT_BUS.register(this);
-
-        // Carga configuración
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {

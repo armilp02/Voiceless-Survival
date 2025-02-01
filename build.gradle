@@ -72,13 +72,21 @@ repositories {
         content {
             includeGroup "maven.modrinth"
         }
-
+        maven {
+            // Add curse maven to repositories
+            name = "Curse Maven"
+            url = "https://www.cursemaven.com"
+            content {
+                includeGroup "curse.maven"
+            }
+        }
     }
 }
 
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 
+    implementation fg.deobf('curse.maven:timeless-and-classics-zero-1028108:5529117-sources-5529578')
     implementation "de.maxhenkel.voicechat:voicechat-api:${voicechat_api_version}"
     runtimeOnly fg.deobf("maven.modrinth:simple-voice-chat:forge-${voicechat_version}")
 
@@ -132,7 +140,7 @@ tasks.register('publishCurseForge', TaskPublishCurseForge) {
 modrinth {
     token = System.getenv("MODRINTH_TOKEN")
     projectId = "voiceless-survival"
-    versionName = "${mod_name} ${mod_version} Forge"
+    versionName = "${mod_name} ${mod_version}"
     versionNumber = "${mod_version}"
     versionType = "beta"
     uploadFile = file("build/libs/${mod_id}-${mod_version}.jar")
@@ -147,9 +155,9 @@ modrinth {
 }
 
 tasks.register('publicModdedSite') {
-    // dependsOn 'build'
+    dependsOn 'build'
     dependsOn 'publishCurseForge'
-    // dependsOn 'modrinth'
+    dependsOn 'modrinth'
 }
 
 

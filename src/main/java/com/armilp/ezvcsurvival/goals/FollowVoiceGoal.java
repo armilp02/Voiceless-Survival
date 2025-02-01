@@ -30,7 +30,6 @@ public class FollowVoiceGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        // Detecta el último sonido o un jugador cercano
         targetPlayer = getNearestPlayerInRange();
         targetSoundPosition = Plugin.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange);
         return targetPlayer != null || targetSoundPosition != null;
@@ -70,30 +69,26 @@ public class FollowVoiceGoal extends Goal {
     private void handlePlayerInteraction() {
         double distanceToPlayer = mob.distanceTo(targetPlayer);
 
-        // Ignorar al jugador si está en modo creativo
         if (targetPlayer.isCreative()) {
             targetPlayer = null;
             mob.getNavigation().stop();
             return;
         }
 
-        // Si el jugador está fuera del rango de detección, reiniciar el objetivo
         if (distanceToPlayer > voiceDetectionRange) {
             targetPlayer = null;
             mob.getNavigation().stop();
             return;
         }
 
-        // Si el mob está cerca del jugador, atacar
         if (distanceToPlayer <= 1.0) {
-            long currentTime = System.currentTimeMillis(); // Tiempo actual en milisegundos
+            long currentTime = System.currentTimeMillis();
 
-            // Verificar si el mob puede atacar nuevamente
             if (currentTime - lastAttackTime >= attackCooldown) {
                 mob.getNavigation().stop();
-                mob.swing(mob.getUsedItemHand()); // Animación del ataque
-                mob.doHurtTarget(targetPlayer);   // Realiza el daño al jugador
-                lastAttackTime = currentTime;     // Actualizar el tiempo del último ataque
+                mob.swing(mob.getUsedItemHand());
+                mob.doHurtTarget(targetPlayer);
+                lastAttackTime = currentTime;
             }
             return;
         }

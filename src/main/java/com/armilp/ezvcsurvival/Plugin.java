@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 @Mod.EventBusSubscriber(modid = "ezvcsurvival")
 public class Plugin implements VoicechatPlugin {
 
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private static final Map<UUID, SoundData> playerSoundLocations = new ConcurrentHashMap<>();
 
@@ -168,11 +168,11 @@ public class Plugin implements VoicechatPlugin {
                     (int) Math.floor(sender.getPlayer().getPosition().getZ())
             );
 
-            double distance = Math.sqrt(playerPosition.distSqr(senderPosition));
-            double perceivedIntensity = audioLevel - 20 * Math.log10(distance + 1);
+            double distanceSq = playerPosition.distSqr(senderPosition);
+            double perceivedIntensity = audioLevel - 20 * Math.log10(Math.sqrt(distanceSq) + 1);
 
             if (DEBUG) {
-                System.out.println("[DEBUG] Perceived Intensity for " + animalId + ": " + perceivedIntensity + " dB at distance " + distance);
+                System.out.println("[DEBUG] Perceived Intensity for " + animalId + ": " + perceivedIntensity + " dB at distance " + Math.sqrt(distanceSq));
             }
 
             if (perceivedIntensity < threshold) {
@@ -181,8 +181,7 @@ public class Plugin implements VoicechatPlugin {
                 }
                 continue;
             }
-
-            if (playerPosition.distSqr(senderPosition) <= detectionRange * detectionRange) {
+            if (distanceSq <= detectionRange * detectionRange) {
                 playerSoundLocations.put(playerUUID, new SoundData(playerPosition, detectionRange, speed));
 
                 if (DEBUG) {
@@ -228,11 +227,11 @@ public class Plugin implements VoicechatPlugin {
                     (int) Math.floor(sender.getPlayer().getPosition().getZ())
             );
 
-            double distance = Math.sqrt(playerPosition.distSqr(senderPosition));
-            double perceivedIntensity = audioLevel - 20 * Math.log10(distance + 1);
+            double distanceSq = playerPosition.distSqr(senderPosition);
+            double perceivedIntensity = audioLevel - 20 * Math.log10(Math.sqrt(distanceSq) + 1);
 
             if (DEBUG) {
-                System.out.println("[DEBUG] Perceived Intensity for " + mobId + ": " + perceivedIntensity + " dB at distance " + distance);
+                System.out.println("[DEBUG] Perceived Intensity for " + mobId + ": " + perceivedIntensity + " dB at distance " + Math.sqrt(distanceSq));
             }
 
             if (perceivedIntensity < threshold) {
@@ -242,7 +241,7 @@ public class Plugin implements VoicechatPlugin {
                 continue;
             }
 
-            if (playerPosition.distSqr(senderPosition) <= detectionRange * detectionRange) {
+            if (distanceSq <= detectionRange * detectionRange) {
                 playerSoundLocations.put(playerUUID, new SoundData(playerPosition, detectionRange, speed));
 
                 if (DEBUG) {

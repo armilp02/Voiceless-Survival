@@ -1,11 +1,9 @@
 package com.armilp.ezvcsurvival.goals.injector;
 
-import com.armilp.ezvcsurvival.EZVCSurvival;
 import com.armilp.ezvcsurvival.config.VoiceConfig;
 import com.armilp.ezvcsurvival.goals.RunawayVoiceGoal;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
