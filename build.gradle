@@ -160,7 +160,6 @@ modrinth {
 
     dependencies { // A special DSL for creating dependencies
         required.project 'simple-voice-chat'
-        optional.project 'timeless-and-classic-guns-tac'
     }
 }
 
