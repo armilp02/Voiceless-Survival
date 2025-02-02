@@ -19,6 +19,8 @@ public class VoiceConfig {
     public static final ModConfigSpec.DoubleValue THUNDER_RANGE_MULTIPLIER;
     public static final ModConfigSpec.DoubleValue SNEAKING_RANGE_MULTIPLIER;
 
+    private static final ModConfigSpec.ConfigValue<List<? extends String>> SOUND_REACTION_CONFIGS;
+
     static {
         // Sección FollowVoice Config
         BUILDER.push("FollowVoice Config");
@@ -76,6 +78,21 @@ public class VoiceConfig {
                 "Multiplier for detection range when the player is sneaking."
         ).defineInRange("sneaking_range_multiplier", 0.5, 0.0, 1.0);
 
+        SOUND_REACTION_CONFIGS = BUILDER.comment(
+                "List of sound reaction configurations for mobs.",
+                "Format: 'mob_id=speed=<value>,range=<value>,sound_types=<type1,type2,...>'",
+                "Example: 'minecraft:zombie=speed=1.5,range=20,sound_types=block.wood.break,block.metal.hit,modded:custom.sound'",
+                "How to know the sound types? Use the command /playsound <sound> <source> <player>"
+        ).defineList(
+                "sound_reaction_configs",
+                List.of(
+                        "minecraft:zombie=speed=1.5,range=20,sound_types=block.wood.break,block.metal.hit",
+                        "minecraft:cow=speed=1.8,range=16,sound_types=entity.cow.death,entity.cow.hurt"
+                ),
+                obj -> obj instanceof String && ((String) obj).contains("=")
+        );
+
+
         BUILDER.pop();
 
         CONFIG = BUILDER.build();
@@ -97,6 +114,48 @@ public class VoiceConfig {
                             mobConfig.put(keyValue[0].trim(), Double.parseDouble(keyValue[1].trim()));
                         } catch (NumberFormatException e) {
                             System.err.println("[VoiceConfig] Invalid number format in: " + attribute);
+                        }
+                    }
+                }
+                parsedConfigs.put(mobId, mobConfig);
+            }
+        }
+        return parsedConfigs;
+    }
+
+    public static Map<String, Map<String, Object>> getSoundReactionConfigs() {
+        Map<String, Map<String, Object>> parsedConfigs = new HashMap<>();
+        for (String config : SOUND_REACTION_CONFIGS.get()) {
+            String[] parts = config.split("=", 2);
+            if (parts.length == 2) {
+                String mobId = parts[0];
+                String remaining = parts[1];
+                String[] tokens = remaining.split(",");
+                Map<String, Object> mobConfig = new HashMap<>();
+                String currentKey = null;
+                for (String token : tokens) {
+                    if (token.contains("=")) {
+                        String[] keyValue = token.split("=", 2);
+                        currentKey = keyValue[0].trim();
+                        String value = keyValue[1].trim();
+                        if ("sound_types".equals(currentKey)) {
+                            List<String> sounds = new java.util.ArrayList<>();
+                            sounds.add(value);
+                            mobConfig.put(currentKey, sounds);
+                        } else {
+                            try {
+                                mobConfig.put(currentKey, Double.parseDouble(value));
+                            } catch (NumberFormatException e) {
+                                System.err.println("[VoiceConfig] Invalid number format in: " + token);
+                            }
+                        }
+                    } else {
+                        if ("sound_types".equals(currentKey)) {
+                            @SuppressWarnings("unchecked")
+                            List<String> sounds = (List<String>) mobConfig.get("sound_types");
+                            sounds.add(token.trim());
+                        } else {
+                            System.err.println("[VoiceConfig] Unexpected token without '=': " + token);
                         }
                     }
                 }
