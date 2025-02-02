@@ -1,5 +1,10 @@
 ### Changelog
 
+#### Version 0.6.1
+
+- Now you can configure `any sound`, whether from Minecraft or Mods, to affect mob behavior.
+- `Hostile mobs` move toward the sound, while `passive mobs` flee.
+
 #### Version 0.4.1
 
 - Organized the project structure to improve maintainability.
@@ -20,8 +25,8 @@
 
 - Updated to version 0.1.0 to reflect significant new features and improvements.
 - Added dynamic adjustments to detection range and mob speed based on player whispering:
-  - Whispering reduces detection range and speed using configurable `whisper_range_multiplier` and `whisper_speed_multiplier`.
-  - Sneaking further reduces detection range when whispering or speaking normally. *(This will be improved with the stealth system update.)*
+    - Whispering reduces detection range and speed using configurable `whisper_range_multiplier` and `whisper_speed_multiplier`.
+    - Sneaking further reduces detection range when whispering or speaking normally. *(This will be improved with the stealth system update.)*
 
 #### Version 0.0.5
 
