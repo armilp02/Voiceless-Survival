@@ -8,9 +8,9 @@ license = "ARR" # Example license, adjust as needed
 issueTrackerURL = "https://github.com/armilp02/Voiceless-Survival/issues"
 
 [[mods]] #mandatory
-modId = "ezvcsurvival" #mandatory
-version = "1.21.1-0.6.1" # Use the actual version of your mod
-displayName = "Voiceless Survival" #mandatory
+modId = "ezvcsurvival"
+version = "1.21.1-0.6.2"
+displayName = "Voiceless Survival"
 description = '''
 A survival mod for Minecraft with voice chat integration and enhanced gameplay.
 '''
