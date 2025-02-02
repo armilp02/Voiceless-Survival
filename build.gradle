@@ -134,6 +134,7 @@ tasks.register('publishCurseForge', TaskPublishCurseForge) {
     mainFile.changelog = changelogText
 
     mainFile.addRequirement("simple-voice-chat")
+    mainFile.addOptional("timeless-and-classics-zero")
 }
 
 
@@ -151,6 +152,7 @@ modrinth {
 
     dependencies {
         required.project 'simple-voice-chat'
+        optional.project 'timeless-and-classics-zero'
     }
 }
 

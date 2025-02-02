@@ -17,14 +17,14 @@ public class FollowVoiceGoal extends Goal {
     private final double threshold;
     private BlockPos targetSoundPosition;
     private long timePlayerInRange;
-    private long lastAttackTime = 0;
-    private final long attackCooldown = 2000;
+    private final long maxFollowTime;
 
-    public FollowVoiceGoal(Mob mob, double speedModifier, int detectionRange, double threshold) {
+    public FollowVoiceGoal(Mob mob, double speedModifier, int detectionRange, double threshold, long maxFollowTime) {
         this.mob = mob;
         this.speedModifier = speedModifier;
         this.voiceDetectionRange = detectionRange;
         this.threshold = threshold;
+        this.maxFollowTime = maxFollowTime;
         this.setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.TARGET));
     }
 
@@ -67,34 +67,24 @@ public class FollowVoiceGoal extends Goal {
     }
 
     private void handlePlayerInteraction() {
-        double distanceToPlayer = mob.distanceTo(targetPlayer);
-
         if (targetPlayer.isCreative()) {
             targetPlayer = null;
             mob.getNavigation().stop();
             return;
         }
 
-        if (distanceToPlayer > voiceDetectionRange) {
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - timePlayerInRange > maxFollowTime) {
             targetPlayer = null;
             mob.getNavigation().stop();
             return;
         }
 
-        if (distanceToPlayer <= 1.0) {
-            long currentTime = System.currentTimeMillis();
+        mob.getNavigation().setSpeedModifier(speedModifier);
 
-            if (currentTime - lastAttackTime >= attackCooldown) {
-                mob.getNavigation().stop();
-                mob.swing(mob.getUsedItemHand());
-                mob.doHurtTarget(targetPlayer);
-                lastAttackTime = currentTime;
-            }
-            return;
+        if (mob.getTarget() == null) {
+            mob.setTarget(targetPlayer);
         }
-
-        mob.getNavigation().moveTo(targetPlayer, speedModifier);
-        targetSoundPosition = null;
     }
 
     private void handleSoundInteraction() {
