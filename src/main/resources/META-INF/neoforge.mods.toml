@@ -1,39 +1,29 @@
-# This is the neoforge.mods.toml file for the "Voiceless Survival" mod.
-
-modLoader = "javafml" #mandatory
-loaderVersion = "[4,)" # Ensure this matches the NeoForge loader version you're targeting
-license = "ARR" # Example license, adjust as needed
-
-# A URL to refer users for bug reports or issues
+modLoader = "javafml"
+loaderVersion = "[4,)"
+license = "ARR"
 issueTrackerURL = "https://github.com/armilp02/Voiceless-Survival/issues"
 
-[[mods]] #mandatory
+[[mods]]
 modId = "ezvcsurvival"
-version = "1.21.1-0.6.2"
+version = "1.21.1-0.8.2"
 displayName = "Voiceless Survival"
 description = '''
 A survival mod for Minecraft with voice chat integration and enhanced gameplay.
 '''
 
 authors = "armilp"
-
-# Dependency for NeoForge loader
 [[dependencies.ezvcsurvival]]
 modId = "neoforge"
 type = "required"
 versionRange = "[4,)"
 ordering = "NONE"
 side = "BOTH"
-
-# Dependency for Minecraft
 [[dependencies.ezvcsurvival]]
 modId = "minecraft"
 type = "required"
 versionRange = "[1.21.1,1.22)"
 ordering = "NONE"
 side = "BOTH"
-
-# Dependency for the voice chat mod
 [[dependencies.ezvcsurvival]]
 modId = "voicechat"
 type = "required"

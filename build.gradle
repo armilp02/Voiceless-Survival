@@ -1,4 +1,4 @@
-import net.darkhax.curseforgegradle.TaskPublishCurseForge
+import net.darkhax.curseforgegradle.TaskPublishCurseForge;
 
 plugins {
     id 'java-library'
