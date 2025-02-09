@@ -30,6 +30,10 @@ public class FollowVoiceGoal extends Goal {
 
     @Override
     public boolean canUse() {
+        if (mob.getTarget() != null) {
+            return false;
+        }
+
         targetPlayer = getNearestPlayerInRange();
         targetSoundPosition = Plugin.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange);
         return targetPlayer != null || targetSoundPosition != null;
@@ -46,6 +50,9 @@ public class FollowVoiceGoal extends Goal {
 
     @Override
     public boolean canContinueToUse() {
+        if (mob.getTarget() != null) {
+            return false;
+        }
         return targetPlayer != null || (targetSoundPosition != null && !mob.getNavigation().isDone());
     }
 

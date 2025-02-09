@@ -13,19 +13,12 @@ public class SoundEventHandler {
 
     @SubscribeEvent
     public static void onPlaySound(PlaySoundEvent event) {
-        // Check that the sound is an instance of SimpleSoundInstance (which has a position)
         if (!(event.getSound() instanceof SimpleSoundInstance sound)) {
             return;
         }
 
-        // Extract the position of the sound
-        double x = sound.getX();
-        double y = sound.getY();
-        double z = sound.getZ();
-        Vec3 position = new Vec3(x, y, z);
-
-        // Get the identifier of the sound
-        ResourceLocation id = sound.getLocation();
-        SoundEventTracker.registerSound(id, position);
+        Vec3 position = new Vec3(sound.getX(), sound.getY(), sound.getZ());
+        ResourceLocation soundId = sound.getLocation();
+        SoundEventTracker.registerSound(soundId, position);
     }
 }

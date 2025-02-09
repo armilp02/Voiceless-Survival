@@ -1,11 +1,12 @@
 package com.armilp.ezvcsurvival.goals;
 
+import com.armilp.ezvcsurvival.data.GunshotData;
+import com.armilp.ezvcsurvival.data.SoundGroupData;
 import com.armilp.ezvcsurvival.events.GunFireListener;
 import com.armilp.ezvcsurvival.events.SoundEventTracker;
-import net.minecraft.core.BlockPos;
+import com.armilp.ezvcsurvival.config.SoundConfig;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
@@ -16,44 +17,69 @@ import net.minecraftforge.fml.common.Mod;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public class ReactToSoundGoal extends Goal {
+public class ReactToSoundGoal extends net.minecraft.world.entity.ai.goal.Goal {
     private final Mob mob;
     private final double speed;
     private final int range;
-    private final List<String> soundStrings;
+    private final List<SoundGroupData> soundGroups;
 
-    // Stores the attacker's position when the mob takes damage.
     private Vec3 lastAttackerPos = null;
-
-    // Static list to keep track of active ReactToSoundGoal instances.
     private static final List<ReactToSoundGoal> activeGoals = new CopyOnWriteArrayList<>();
 
-    public ReactToSoundGoal(Mob mob, double speed, int range, List<String> soundTypes) {
+    public ReactToSoundGoal(Mob mob, double speed, int range, List<SoundGroupData> soundGroups) {
         this.mob = mob;
         this.speed = speed;
         this.range = range;
-        this.soundStrings = soundTypes;
+        this.soundGroups = soundGroups;
         activeGoals.add(this);
     }
 
     @Override
     public boolean canUse() {
-        List<ResourceLocation> resourceLocations = soundStrings.stream()
-                .map(ResourceLocation::new)
-                .toList();
+        Vec3 mobCenterPos = mob.position();
+        double effectiveRange = range;
+        double effectiveSpeed = speed;
 
-        Vec3 mobCenterPos = Vec3.atCenterOf(BlockPos.containing(mob.position()));
-        Vec3 soundPosition = SoundEventTracker.getLastPlayedPositionForAny(resourceLocations);
-        Vec3 gunshotPosition = GunFireListener.getLastGunshotPosition();
+        GunshotData gunshotData = GunFireListener.getLastGunshotData();
+        if (gunshotData != null) {
+            double rangeMultiplier = SoundConfig.getRangeMultiplier(gunshotData.gunType.name().toLowerCase());
+            effectiveRange = (int)(range * rangeMultiplier);
+            double speedMultiplier = SoundConfig.getSpeedMultiplier(gunshotData.gunType.name().toLowerCase());
+            effectiveSpeed = speed * speedMultiplier;
+        }
 
-        // The goal activates if the sound was played within range...
-        boolean soundTriggered = soundPosition != null && soundPosition.distanceTo(mobCenterPos) <= this.range;
-        // ...or if the mob (which is not a monster) was recently hit.
+        boolean gunshotTriggered = false;
+        if (gunshotData != null) {
+            double gunDistance = mobCenterPos.distanceTo(gunshotData.position);
+            gunshotTriggered = gunDistance <= effectiveRange;
+        }
+
+        Vec3 soundEventPos = null;
+        double groupSpeedMult = 1.0;
+        double groupRangeMult = 1.0;
+        outer:
+        for (SoundGroupData group : soundGroups) {
+            for (String soundStr : group.sounds) {
+                ResourceLocation res = new ResourceLocation(soundStr);
+                Vec3 pos = SoundEventTracker.getLastPlayedPositionForSound(res);
+                if (pos != null) {
+                    soundEventPos = pos;
+                    groupSpeedMult = group.speedMultiplier;
+                    groupRangeMult = group.rangeMultiplier;
+                    break outer;
+                }
+            }
+        }
+
+        boolean soundTriggered = false;
+        if (soundEventPos != null) {
+            double groupEffectiveRange = range * groupRangeMult;
+            soundTriggered = mobCenterPos.distanceTo(soundEventPos) <= groupEffectiveRange;
+        }
+
         boolean hurtTriggered = !(mob instanceof Monster) && lastAttackerPos != null;
-        // ...or if a gunshot was detected nearby.
-        boolean gunshotDetected = gunshotPosition != null && gunshotPosition.distanceTo(mobCenterPos) <= this.range;
 
-        return soundTriggered || hurtTriggered || gunshotDetected;
+        return gunshotTriggered || soundTriggered || hurtTriggered;
     }
 
     @Override
@@ -62,14 +88,13 @@ public class ReactToSoundGoal extends Goal {
     }
 
     @Override
-    public void stop() {
-        // Remove this instance from the active goals list.
-        activeGoals.remove(this);
+    public void tick() {
+        updateNavigation();
     }
 
     @Override
-    public void tick() {
-        updateNavigation();
+    public void stop() {
+        activeGoals.remove(this);
     }
 
     public void onHurt(Vec3 attackerPos) {
@@ -79,58 +104,73 @@ public class ReactToSoundGoal extends Goal {
     private void updateNavigation() {
         Vec3 currentPos = mob.position();
         Vec3 target = null;
+        double effectiveRange = range;
+        double effectiveSpeed = speed;
 
+        GunshotData gunshotData = GunFireListener.getLastGunshotData();
+        if (gunshotData != null) {
+            double rangeMultiplier = SoundConfig.getRangeMultiplier(gunshotData.gunType.name().toLowerCase());
+            effectiveRange = (int)(range * rangeMultiplier);
+            double speedMultiplier = SoundConfig.getSpeedMultiplier(gunshotData.gunType.name().toLowerCase());
+            effectiveSpeed = speed * speedMultiplier;
+        }
+
+        Vec3 soundEventPos = null;
+        double groupSpeedMult = 1.0;
+        double groupRangeMult = 1.0;
+        outer:
+        for (SoundGroupData group : soundGroups) {
+            for (String soundStr : group.sounds) {
+                ResourceLocation res = new ResourceLocation(soundStr);
+                Vec3 pos = SoundEventTracker.getLastPlayedPositionForSound(res);
+                if (pos != null) {
+                    soundEventPos = pos;
+                    groupSpeedMult = group.speedMultiplier;
+                    groupRangeMult = group.rangeMultiplier;
+                    break outer;
+                }
+            }
+        }
+        if (soundEventPos != null) {
+            effectiveRange = (int)(range * groupRangeMult);
+            effectiveSpeed = speed * groupSpeedMult;
+        }
 
         if (mob instanceof Monster) {
-            // If the hostile mob already has a target that is a player, cancel the reaction.
-            if (mob.getTarget() != null && mob.getTarget() instanceof Player) {
+            if (mob.getTarget() instanceof Player) {
                 return;
             }
-
-            Vec3 gunshotPosition = GunFireListener.getLastGunshotPosition();
-            if (gunshotPosition != null) {
-                target = new Vec3(gunshotPosition.x, mob.getY(), gunshotPosition.z);
-            }
-            // Hostile mobs: move towards the sound.
-            List<ResourceLocation> resourceLocations = soundStrings.stream()
-                    .map(ResourceLocation::new)
-                    .toList();
-            Vec3 soundPosition = SoundEventTracker.getLastPlayedPositionForAny(resourceLocations);
-            if (soundPosition != null) {
-                target = new Vec3(soundPosition.x, mob.getY(), soundPosition.z);
+            if (gunshotData != null && currentPos.distanceTo(gunshotData.position) <= effectiveRange) {
+                target = new Vec3(gunshotData.position.x, mob.getY(), gunshotData.position.z);
+            } else if (soundEventPos != null && currentPos.distanceTo(soundEventPos) <= effectiveRange) {
+                target = new Vec3(soundEventPos.x, mob.getY(), soundEventPos.z);
             }
         } else {
-            // Non-hostile mobs: if they have been hit, run away from the attacker.
             if (lastAttackerPos != null) {
                 Vec3 diff = currentPos.subtract(lastAttackerPos);
                 if (diff.lengthSqr() < 1e-4) {
                     diff = new Vec3(1, 0, 0);
                 }
-                // Normalize and scale the vector so that the mob moves away significantly (using 'range').
-                target = currentPos.add(diff.normalize().scale(range));
-                // Reset the attacker's position once the attack has been processed.
+                target = currentPos.add(diff.normalize().scale(effectiveRange));
                 lastAttackerPos = null;
-            } else {
-                // If no damage was received, move away from the sound.
-                List<ResourceLocation> resourceLocations = soundStrings.stream()
-                        .map(ResourceLocation::new)
-                        .toList();
-                Vec3 soundPosition = SoundEventTracker.getLastPlayedPositionForAny(resourceLocations);
-                if (soundPosition != null) {
-                    Vec3 diff = currentPos.subtract(soundPosition);
-                    if (diff.lengthSqr() < 1e-4) {
-                        diff = new Vec3(1, 0, 0);
-                    }
-                    target = currentPos.add(diff);
+            } else if (gunshotData != null && currentPos.distanceTo(gunshotData.position) <= effectiveRange) {
+                Vec3 diff = currentPos.subtract(gunshotData.position);
+                if (diff.lengthSqr() < 1e-4) {
+                    diff = new Vec3(1, 0, 0);
                 }
-            }
-            // Maintain the current height to avoid issues with pathfinding.
-            if (target != null) {
-                target = new Vec3(target.x, mob.getY(), target.z);
+                target = currentPos.add(diff.normalize().scale(effectiveRange));
+            } else if (soundEventPos != null && currentPos.distanceTo(soundEventPos) <= effectiveRange) {
+                Vec3 diff = currentPos.subtract(soundEventPos);
+                if (diff.lengthSqr() < 1e-4) {
+                    diff = new Vec3(1, 0, 0);
+                }
+                target = currentPos.add(diff.normalize());
             }
         }
+
         if (target != null) {
-            mob.getNavigation().moveTo(target.x, target.y, target.z, speed);
+            target = new Vec3(target.x, mob.getY(), target.z);
+            mob.getNavigation().moveTo(target.x, target.y, target.z, effectiveSpeed);
         }
     }
 
