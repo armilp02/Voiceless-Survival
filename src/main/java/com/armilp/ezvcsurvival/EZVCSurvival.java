@@ -1,5 +1,6 @@
 package com.armilp.ezvcsurvival;
 
+import com.armilp.ezvcsurvival.config.SoundConfig;
 import com.armilp.ezvcsurvival.config.VoiceConfig;
 import com.mojang.logging.LogUtils;
 import net.minecraftforge.common.MinecraftForge;
@@ -21,8 +22,10 @@ public class EZVCSurvival {
     public EZVCSurvival() {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
-        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, VoiceConfig.CONFIG);
+        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, VoiceConfig.CONFIG, "ezvcsurvival/voices.toml");
+        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, SoundConfig.SPEC, "ezvcsurvival/sounds.toml");
 
+        SoundConfig.loadConfigs();
         modEventBus.addListener(this::commonSetup);
         MinecraftForge.EVENT_BUS.register(this);
     }

@@ -2,7 +2,12 @@ package com.armilp.ezvcsurvival.events;
 
 import com.armilp.ezvcsurvival.data.GunshotData;
 import com.tacz.guns.api.event.common.GunFireEvent;
+import com.tacz.guns.api.item.GunTabType;
+import com.tacz.guns.api.item.IGun;
+import com.tacz.guns.api.item.attachment.AttachmentType;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -20,24 +25,58 @@ public class GunFireListener {
     private static final boolean TACZ_LOADED = ModList.get().isLoaded("tacz");
 
     static {
-        if (TACZ_LOADED) {
-            MinecraftForge.EVENT_BUS.register(GunFireListener.class);
-        }
+        MinecraftForge.EVENT_BUS.register(GunFireListener.class);
     }
 
     @SubscribeEvent
     public static void onGunFire(Event event) {
-        if (!TACZ_LOADED) return;
+        if (TACZ_LOADED && event instanceof GunFireEvent gunFireEvent) {
+            ItemStack gunStack = gunFireEvent.getGunItemStack();
+            IGun gun = IGun.getIGunOrNull(gunStack);
+            boolean hasSilencer = false;
 
-        if (event instanceof GunFireEvent gunFireEvent) {
+            if (gun != null) {
+                for (AttachmentType type : AttachmentType.values()) {
+                    ResourceLocation attachmentId = gun.getAttachmentId(gunStack, type);
+                    if (attachmentId.toString().toLowerCase().contains("silencer")) {
+                        hasSilencer = true;
+                        break;
+                    }
+                }
+            }
+
+            if (hasSilencer) {
+                return;
+            }
+
             Vec3 shooterPos = gunFireEvent.getShooter().position();
-            gunshotPositions.add(new GunshotData(shooterPos, System.currentTimeMillis()));
+
+            GunTabType gunType = GunTabType.PISTOL;
+            if (gun != null) {
+                ResourceLocation gunId = gun.getGunId(gunStack);
+                String gunIdStr = gunId.toString().toLowerCase();
+                if (gunIdStr.contains("sniper")) {
+                    gunType = GunTabType.SNIPER;
+                } else if (gunIdStr.contains("rifle")) {
+                    gunType = GunTabType.RIFLE;
+                } else if (gunIdStr.contains("shotgun")) {
+                    gunType = GunTabType.SHOTGUN;
+                } else if (gunIdStr.contains("smg")) {
+                    gunType = GunTabType.SMG;
+                } else if (gunIdStr.contains("rpg")) {
+                    gunType = GunTabType.RPG;
+                } else if (gunIdStr.contains("mg")) {
+                    gunType = GunTabType.MG;
+                }
+            }
+
+            gunshotPositions.add(new GunshotData(shooterPos, System.currentTimeMillis(), gunType));
         }
     }
 
-    public static Vec3 getLastGunshotPosition() {
+    public static GunshotData getLastGunshotData() {
         long currentTime = System.currentTimeMillis();
         gunshotPositions.removeIf(record -> currentTime - record.timestamp > EXPIRATION_TIME_MS);
-        return gunshotPositions.isEmpty() ? null : gunshotPositions.get(gunshotPositions.size() - 1).position;
+        return gunshotPositions.isEmpty() ? null : gunshotPositions.get(gunshotPositions.size() - 1);
     }
 }
