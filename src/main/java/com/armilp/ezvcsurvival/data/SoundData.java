@@ -2,7 +2,7 @@ package com.armilp.ezvcsurvival.data;
 
 import net.minecraft.core.BlockPos;
 
-public  class SoundData {
+public class SoundData {
         private final BlockPos position;
         private final double range;
         private final double speed;

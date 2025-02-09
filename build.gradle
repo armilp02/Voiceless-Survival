@@ -143,7 +143,7 @@ tasks.register('publishCurseForge', TaskPublishCurseForge) {
 modrinth {
     token = System.getenv("MODRINTH_TOKEN")
     projectId = "voiceless-survival"
-    versionName = "${mod_name} ${mod_version} Forge"
+    versionName = "${mod_name} ${mod_version}"
     versionNumber = "${mod_version}"
     versionType = "beta"
     uploadFile = file("build/libs/${mod_id}-${mod_version}.jar")
