@@ -22,14 +22,11 @@ public class EZVCSurvival {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     public EZVCSurvival(IEventBus modEventBus, ModContainer modContainer) {
-        // Registrar las configuraciones
         modContainer.registerConfig(ModConfig.Type.COMMON, VoiceConfig.CONFIG, "ezvcsurvival/voices.toml");
         modContainer.registerConfig(ModConfig.Type.COMMON, SoundConfig.SPEC, "ezvcsurvival/sounds.toml");
 
-        // Registrar esta clase para recibir eventos de ciclo de vida
         modEventBus.register(this);
 
-        // Registrar los manejadores de eventos en el bus de NeoForge
         NeoForge.EVENT_BUS.register(new SoundEventHandler());
         NeoForge.EVENT_BUS.register(new ReactToSoundGoalInjector());
         NeoForge.EVENT_BUS.register(new ReactToSoundGoal.ReactToSoundGoalEventHandler());
@@ -38,7 +35,6 @@ public class EZVCSurvival {
     @SubscribeEvent
     public void onCommonSetup(FMLCommonSetupEvent event) {
         SoundConfig.loadConfigs();
-        LOGGER.info("SoundConfig cargado correctamente");
     }
 
     @SubscribeEvent

@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 @Mod(EZVCSurvival.MOD_ID)
 public class Plugin implements VoicechatPlugin {
 
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private static final Map<UUID, SoundData> playerSoundLocations = new ConcurrentHashMap<>();
 

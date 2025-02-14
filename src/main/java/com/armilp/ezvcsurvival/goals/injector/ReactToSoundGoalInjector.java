@@ -7,6 +7,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Mob;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 
 import java.util.List;
@@ -34,10 +35,8 @@ public class ReactToSoundGoalInjector {
             int range = (int) rangeDouble;
             List<?> groups = (List<?>) config.get("groups");
             if (groups != null && !groups.isEmpty()) {
-                // Se obtiene la lista de grupos de sonido configurados para el mob
                 List<SoundGroupData> soundGroups = SoundConfig.getSoundGroupsForMob(mobId);
                 if (!soundGroups.isEmpty()) {
-                    // Se añade el goal al selector de goals del mob (prioridad 3)
                     mob.goalSelector.addGoal(3, new ReactToSoundGoal(mob, speed, range, soundGroups));
                 }
             }
