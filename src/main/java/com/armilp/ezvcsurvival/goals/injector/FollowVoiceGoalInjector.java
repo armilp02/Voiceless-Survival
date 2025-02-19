@@ -27,7 +27,7 @@ public class FollowVoiceGoalInjector {
             double range = config.getOrDefault("range", 16.0);
             double threshold = config.getOrDefault("threshold", -40.0);
 
-            mob.goalSelector.addGoal(1, new FollowVoiceGoal(mob, speed, (int) range, threshold, 10000));
+            mob.goalSelector.addGoal(0, new FollowVoiceGoal(mob, speed, (int) range, threshold, 10000));
         }
     }
 }

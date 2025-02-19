@@ -1,5 +1,6 @@
 package com.armilp.ezvcsurvival;
 
+import com.armilp.ezvcsurvival.commands.SoundEffectCommand;
 import com.armilp.ezvcsurvival.data.SoundData;
 import de.maxhenkel.voicechat.api.*;
 import de.maxhenkel.voicechat.api.events.EventRegistration;
@@ -7,6 +8,8 @@ import de.maxhenkel.voicechat.api.events.MicrophonePacketEvent;
 import de.maxhenkel.voicechat.api.opus.OpusDecoder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.commands.CommandSourceStack;
 import net.minecraftforge.fml.common.Mod;
 import com.armilp.ezvcsurvival.config.VoiceConfig;
 
@@ -21,9 +24,14 @@ import java.util.concurrent.TimeUnit;
 @Mod.EventBusSubscriber(modid = "ezvcsurvival")
 public class Plugin implements VoicechatPlugin {
 
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = true;
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private static final Map<UUID, SoundData> playerSoundLocations = new ConcurrentHashMap<>();
+
+    // Para controlar cuándo se aplica el efecto al hablar
+    private static final Map<UUID, Long> lastVoiceEffectTime = new ConcurrentHashMap<>();
+    private static final long VOICE_EFFECT_COOLDOWN_MS = 5000; // 5 segundos de cooldown
+    private static final double VOICE_EFFECT_THRESHOLD = -30.0; // Umbral para activar el efecto
 
     private static VoicechatApi voicechatApi;
 
@@ -86,17 +94,15 @@ public class Plugin implements VoicechatPlugin {
     }
 
     public void onMicrophonePacket(MicrophonePacketEvent event) {
-        // Get the player who sent the packet
+        // Obtenemos el jugador que envía el paquete
         VoicechatConnection sender = event.getSenderConnection();
         if (sender == null || sender.getPlayer() == null) {
-            return; // Ensure the player exists
+            return;
         }
 
-        // Check if the player is in creative mode
-        if (sender.getPlayer().getPlayer() instanceof ServerPlayer player) {
-            if (player.isCreative()) {
-                return; // Cancel processing if the player is in creative mode
-            }
+        // Evitamos procesar si el jugador está en modo creativo
+        if (sender.getPlayer().getPlayer() instanceof ServerPlayer player && player.isCreative()) {
+            return;
         }
 
         if (decoder == null || decoder.isClosed()) {
@@ -106,7 +112,6 @@ public class Plugin implements VoicechatPlugin {
         decoder.resetState();
         byte[] opusEncodedData = event.getPacket().getOpusEncodedData();
         short[] decoded;
-
         try {
             decoded = decoder.decode(opusEncodedData);
         } catch (Exception e) {
@@ -123,8 +128,31 @@ public class Plugin implements VoicechatPlugin {
                 (int) Math.floor(voicechatPosition.getZ())
         );
 
-        boolean isWhispering = event.getPacket().isWhispering();
+        BlockPos senderPosition = playerPosition;
 
+        // Calculamos la intensidad percibida (dB)
+        double distance = Math.sqrt(playerPosition.distSqr(senderPosition));
+        double perceivedIntensity = audioLevel - 20 * Math.log10(distance + 1);
+
+        if (DEBUG) {
+            System.out.println("[DEBUG] Perceived Intensity: " + perceivedIntensity + " dB");
+        }
+
+        long currentTime = System.currentTimeMillis();
+        if (perceivedIntensity >= VOICE_EFFECT_THRESHOLD) {
+            if (!lastVoiceEffectTime.containsKey(playerUUID) ||
+                    currentTime - lastVoiceEffectTime.get(playerUUID) > VOICE_EFFECT_COOLDOWN_MS) {
+                if (sender.getPlayer().getPlayer() instanceof ServerPlayer serverPlayer) {
+                    SoundEffectCommand.applyEffect(serverPlayer);
+                    lastVoiceEffectTime.put(playerUUID, currentTime);
+                    if (DEBUG) {
+                        System.out.println("[DEBUG] Efecto aplicado al jugador " + playerUUID);
+                    }
+                }
+            }
+        }
+
+        boolean isWhispering = event.getPacket().isWhispering();
         double whisperRangeMultiplier = VoiceConfig.WHISPER_RANGE_MULTIPLIER.get();
         double whisperSpeedMultiplier = VoiceConfig.WHISPER_SPEED_MULTIPLIER.get();
         double thunderRangeMultiplier = VoiceConfig.THUNDER_RANGE_MULTIPLIER.get();
@@ -138,11 +166,13 @@ public class Plugin implements VoicechatPlugin {
             double detectionRange = getDetectionRange(animalId);
             double speed = getSpeed(animalId);
 
+
+
             if (isWhispering) {
                 detectionRange *= whisperRangeMultiplier;
                 speed *= whisperSpeedMultiplier;
 
-                if (sender.getPlayer().getPlayer() instanceof net.minecraft.server.level.ServerPlayer player) {
+                if (sender.getPlayer().getPlayer() instanceof ServerPlayer player) {
                     if (player.isCrouching()) {
                         detectionRange *= sneakingRangeMultiplier;
                     }
@@ -152,7 +182,7 @@ public class Plugin implements VoicechatPlugin {
                     }
                 }
             } else {
-                if (sender.getPlayer().getPlayer() instanceof net.minecraft.server.level.ServerPlayer player) {
+                if (sender.getPlayer().getPlayer() instanceof ServerPlayer player) {
                     if (player.isCrouching()) {
                         detectionRange *= sneakingRangeMultiplier;
                     }
@@ -162,22 +192,22 @@ public class Plugin implements VoicechatPlugin {
                 }
             }
 
-            BlockPos senderPosition = new BlockPos(
-                    (int) Math.floor(sender.getPlayer().getPosition().getX()),
-                    (int) Math.floor(sender.getPlayer().getPosition().getY()),
-                    (int) Math.floor(sender.getPlayer().getPosition().getZ())
+            BlockPos senderPos = new BlockPos(
+                    (int) Math.floor(voicechatPosition.getX()),
+                    (int) Math.floor(voicechatPosition.getY()),
+                    (int) Math.floor(voicechatPosition.getZ())
             );
 
-            double distanceSq = playerPosition.distSqr(senderPosition);
-            double perceivedIntensity = audioLevel - 20 * Math.log10(Math.sqrt(distanceSq) + 1);
+            double distanceSq = playerPosition.distSqr(senderPos);
+            double perceivedIntensityAnimal = audioLevel - 20 * Math.log10(Math.sqrt(distanceSq) + 1);
 
             if (DEBUG) {
-                System.out.println("[DEBUG] Perceived Intensity for " + animalId + ": " + perceivedIntensity + " dB at distance " + Math.sqrt(distanceSq));
+                System.out.println("[DEBUG] Perceived Intensity for " + animalId + ": " + perceivedIntensityAnimal + " dB at distance " + Math.sqrt(distanceSq));
             }
 
-            if (perceivedIntensity < threshold) {
+            if (perceivedIntensityAnimal < threshold) {
                 if (DEBUG) {
-                    System.out.println("[DEBUG] Intensity too low for " + animalId + ": " + perceivedIntensity + " dB");
+                    System.out.println("[DEBUG] Intensity too low for " + animalId + ": " + perceivedIntensityAnimal + " dB");
                 }
                 continue;
             }
@@ -199,19 +229,16 @@ public class Plugin implements VoicechatPlugin {
                 detectionRange *= whisperRangeMultiplier;
                 speed *= whisperSpeedMultiplier;
 
-                Object minecraftPlayer = sender.getPlayer().getPlayer();
-                if (minecraftPlayer instanceof net.minecraft.server.level.ServerPlayer player) {
+                if (sender.getPlayer().getPlayer() instanceof ServerPlayer player) {
                     if (player.isCrouching()) {
                         detectionRange *= sneakingRangeMultiplier;
                     }
-
                     if (player.level().isRaining() || player.level().isThundering()) {
                         detectionRange *= thunderRangeMultiplier;
                     }
                 }
             } else {
-                Object minecraftPlayer = sender.getPlayer().getPlayer();
-                if (minecraftPlayer instanceof net.minecraft.server.level.ServerPlayer player) {
+                if (sender.getPlayer().getPlayer() instanceof ServerPlayer player) {
                     if (player.isCrouching()) {
                         detectionRange *= sneakingRangeMultiplier;
                     }
@@ -221,22 +248,22 @@ public class Plugin implements VoicechatPlugin {
                 }
             }
 
-            BlockPos senderPosition = new BlockPos(
-                    (int) Math.floor(sender.getPlayer().getPosition().getX()),
-                    (int) Math.floor(sender.getPlayer().getPosition().getY()),
-                    (int) Math.floor(sender.getPlayer().getPosition().getZ())
+            BlockPos senderPos = new BlockPos(
+                    (int) Math.floor(voicechatPosition.getX()),
+                    (int) Math.floor(voicechatPosition.getY()),
+                    (int) Math.floor(voicechatPosition.getZ())
             );
 
-            double distanceSq = playerPosition.distSqr(senderPosition);
-            double perceivedIntensity = audioLevel - 20 * Math.log10(Math.sqrt(distanceSq) + 1);
+            double distanceSq = playerPosition.distSqr(senderPos);
+            double perceivedIntensityMob = audioLevel - 20 * Math.log10(Math.sqrt(distanceSq) + 1);
 
             if (DEBUG) {
-                System.out.println("[DEBUG] Perceived Intensity for " + mobId + ": " + perceivedIntensity + " dB at distance " + Math.sqrt(distanceSq));
+                System.out.println("[DEBUG] Perceived Intensity for " + mobId + ": " + perceivedIntensityMob + " dB at distance " + Math.sqrt(distanceSq));
             }
 
-            if (perceivedIntensity < threshold) {
+            if (perceivedIntensityMob < threshold) {
                 if (DEBUG) {
-                    System.out.println("[DEBUG] Intensity too low for " + mobId + ": " + perceivedIntensity + " dB");
+                    System.out.println("[DEBUG] Intensity too low for " + mobId + ": " + perceivedIntensityMob + " dB");
                 }
                 continue;
             }
@@ -251,7 +278,6 @@ public class Plugin implements VoicechatPlugin {
         }
         scheduler.schedule(() -> playerSoundLocations.remove(playerUUID), 5, TimeUnit.SECONDS);
     }
-
 
     private List<String> getConfiguredMobIds() {
         Map<String, Map<String, Double>> mobConfigs = VoiceConfig.getMobVoiceConfigs();

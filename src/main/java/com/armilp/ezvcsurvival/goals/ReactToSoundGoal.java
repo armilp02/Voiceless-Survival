@@ -1,5 +1,6 @@
 package com.armilp.ezvcsurvival.goals;
 
+import com.armilp.ezvcsurvival.commands.SoundEffectCommand;
 import com.armilp.ezvcsurvival.data.GunshotData;
 import com.armilp.ezvcsurvival.data.SoundGroupData;
 import com.armilp.ezvcsurvival.events.GunFireListener;
@@ -7,9 +8,11 @@ import com.armilp.ezvcsurvival.events.SoundEventTracker;
 import com.armilp.ezvcsurvival.config.SoundConfig;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -17,7 +20,7 @@ import net.minecraftforge.fml.common.Mod;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public class ReactToSoundGoal extends net.minecraft.world.entity.ai.goal.Goal {
+public class ReactToSoundGoal extends Goal {
     private final Mob mob;
     private final double speed;
     private final int range;
@@ -138,6 +141,9 @@ public class ReactToSoundGoal extends net.minecraft.world.entity.ai.goal.Goal {
 
         if (mob instanceof Monster) {
             if (mob.getTarget() instanceof Player) {
+                if (mob.getTarget() instanceof ServerPlayer) {
+                    SoundEffectCommand.applyEffect((ServerPlayer) mob.getTarget());
+                }
                 return;
             }
             if (gunshotData != null && currentPos.distanceTo(gunshotData.position) <= effectiveRange) {

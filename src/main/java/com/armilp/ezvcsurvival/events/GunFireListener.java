@@ -1,5 +1,6 @@
 package com.armilp.ezvcsurvival.events;
 
+import com.armilp.ezvcsurvival.commands.SoundEffectCommand;
 import com.armilp.ezvcsurvival.data.GunshotData;
 import com.tacz.guns.api.event.common.GunFireEvent;
 import com.tacz.guns.api.item.GunTabType;
@@ -8,13 +9,16 @@ import com.tacz.guns.api.item.attachment.AttachmentType;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.common.Mod;
-
 import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.Arrays;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 @Mod.EventBusSubscriber(modid = "ezvcsurvival", bus = Mod.EventBusSubscriber.Bus.FORGE)
@@ -23,6 +27,17 @@ public class GunFireListener {
     private static final List<GunshotData> gunshotPositions = new CopyOnWriteArrayList<>();
     private static final long EXPIRATION_TIME_MS = 5000;
     private static final boolean TACZ_LOADED = ModList.get().isLoaded("tacz");
+
+    // Conjunto de identificadores conocidos de silenciadores de otros mods
+    private static final Set<String> KNOWN_SILENCERS = new HashSet<>(Arrays.asList(
+            "gucci_attachments:muzzle_s_gsx",
+            "gucci_attachments:muzzle_s_fd197",
+            "gucci_attachments:muzzle_s_gogol9",
+            "gucci_attachemtns:muzzle_s_fss5",
+            "gucci_attachments:muzzle_s_widemouth",
+            "gucci_attachments:muzzle_s_c784",
+            "gucci_attachments:muzzle_s_osprey"
+    ));
 
     static {
         MinecraftForge.EVENT_BUS.register(GunFireListener.class);
@@ -38,7 +53,13 @@ public class GunFireListener {
             if (gun != null) {
                 for (AttachmentType type : AttachmentType.values()) {
                     ResourceLocation attachmentId = gun.getAttachmentId(gunStack, type);
-                    if (attachmentId.toString().toLowerCase().contains("silencer")) {
+                    String attachmentStr = attachmentId.toString().toLowerCase();
+                    // Comprueba si contiene "silencer" o "silenced"
+                    if (attachmentStr.contains("silencer") || attachmentStr.contains("silenced")) {
+                        hasSilencer = true;
+                        break;
+                    }
+                    if (KNOWN_SILENCERS.contains(attachmentStr)) {
                         hasSilencer = true;
                         break;
                     }
@@ -71,6 +92,10 @@ public class GunFireListener {
             }
 
             gunshotPositions.add(new GunshotData(shooterPos, System.currentTimeMillis(), gunType));
+
+            if (gunFireEvent.getShooter() instanceof ServerPlayer serverPlayer) {
+                SoundEffectCommand.applyEffect(serverPlayer);
+            }
         }
     }
 
