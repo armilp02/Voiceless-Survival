@@ -1,6 +1,7 @@
 ### Changelog
 
-#### Version 0.8.2
+#### Version 0.8.4
 
-- The configuration system has been **redesigned** for better clarity and organization. The configuration file paths have been changed to `config/ezvcsurvival/`, and the files are now named `voices.toml` and `sounds.toml`.
-- Added the ability to set speed and range multipliers for mobs in groups, allowing for more customization in how mobs react to sounds.
+- Compatibility Vic's Point Blank Guns
+  - Mobs can detect sounds from Vic's Point Blank Guns (the mobs configured in the `sounds.toml` file).
+  - Silencers from Vic's Point Blank Guns are not detected by mobs.

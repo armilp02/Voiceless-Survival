@@ -21,6 +21,9 @@ public class SoundConfig {
 
     public static final ForgeConfigSpec SPEC;
 
+    // Grupo interno para sonidos de pointblank (no se expone en la configuración)
+    private static final String INTERNAL_POINTBLANK_GROUP = "pointblank_internal";
+
     static {
         ForgeConfigSpec.Builder builder = new ForgeConfigSpec.Builder();
 
@@ -65,6 +68,8 @@ public class SoundConfig {
     public static void loadConfigs() {
         loadSoundGroups();
         loadMobSoundReactions();
+        soundGroupDataMap.computeIfAbsent(INTERNAL_POINTBLANK_GROUP,
+                i -> new SoundGroupData(INTERNAL_POINTBLANK_GROUP, new ArrayList<>(), 1.0, 1.0));
     }
 
     private static void loadSoundGroups() {
@@ -174,6 +179,17 @@ public class SoundConfig {
         }
     }
 
+    // Registra internamente un sonido pointblank en el grupo interno
+    public static void registerPointblankSound(String soundLocation) {
+        SoundGroupData group = soundGroupDataMap.computeIfAbsent(INTERNAL_POINTBLANK_GROUP,
+                i -> new SoundGroupData(i, new ArrayList<>(), 1.2, 1.5));
+        if (!group.getSoundList().contains(soundLocation)) {
+            group.getSoundList().add(soundLocation);
+        }
+    }
+
+    // Al obtener los grupos de sonido para un mob, se añaden los definidos en la configuración
+    // y, de forma interna, se agrega el grupo de pointblank si tiene sonidos registrados.
     public static List<SoundGroupData> getSoundGroupsForMob(String mobId) {
         List<SoundGroupData> list = new ArrayList<>();
         Map<String, Object> reaction = mobReactionsMap.get(mobId);
@@ -188,6 +204,11 @@ public class SoundConfig {
                     EZVCSurvival.LOGGER.warn("No se encontró el grupo: " + group + " para el mob: " + mobId);
                 }
             }
+        }
+        // Independientemente del mob, si el grupo interno tiene sonidos registrados se añade
+        SoundGroupData internalGroup = soundGroupDataMap.get(INTERNAL_POINTBLANK_GROUP);
+        if (internalGroup != null && !internalGroup.getSoundList().isEmpty() && !list.contains(internalGroup)) {
+            list.add(internalGroup);
         }
         return list;
     }

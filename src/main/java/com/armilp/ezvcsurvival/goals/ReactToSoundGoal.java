@@ -113,7 +113,6 @@ public class ReactToSoundGoal extends net.minecraft.world.entity.ai.goal.Goal {
         }
 
         if (mob instanceof Monster) {
-            // Si el mob es un Monster y tiene un target de tipo Player, no se reacciona.
             if (mob.getTarget() instanceof Player) {
                 return;
             }
