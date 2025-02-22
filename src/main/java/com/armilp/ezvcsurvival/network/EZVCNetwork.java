@@ -12,7 +12,7 @@ public class EZVCNetwork {
             PROTOCOL_VERSION::equals,
             PROTOCOL_VERSION::equals
     );
-    
+
     private static int packetId = 0;
 
     public static int nextID() {
@@ -24,6 +24,11 @@ public class EZVCNetwork {
                 .encoder(SoundPlayedPacket::encode)
                 .decoder(SoundPlayedPacket::decode)
                 .consumerMainThread(SoundPlayedPacket::handle)
+                .add();
+        INSTANCE.messageBuilder(PointBlankSoundPacket.class, nextID())
+                .encoder(PointBlankSoundPacket::encode)
+                .decoder(PointBlankSoundPacket::decode)
+                .consumerMainThread(PointBlankSoundPacket::handle)
                 .add();
     }
 }

@@ -6,13 +6,17 @@ import com.armilp.ezvcsurvival.data.SoundGroupData;
 import com.armilp.ezvcsurvival.events.GunFireListener;
 import com.armilp.ezvcsurvival.events.SoundEventTracker;
 import com.armilp.ezvcsurvival.config.SoundConfig;
+import com.armilp.ezvcsurvival.network.EZVCNetwork;
+import com.armilp.ezvcsurvival.network.PointBlankSoundPacket;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.sound.PlaySoundEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -29,6 +33,12 @@ public class ReactToSoundGoal extends Goal {
     private Vec3 lastAttackerPos = null;
     private static final List<ReactToSoundGoal> activeGoals = new CopyOnWriteArrayList<>();
 
+    // Variables para almacenar la última posición del sonido "pointblank" y su timestamp
+    private static Vec3 lastPointBlankSoundPos = null;
+    private static long lastPointBlankSoundTimestamp = 0;
+    // Tiempo de expiración en milisegundos (5000 ms = 5 segundos)
+    private static final long POINT_BLANK_SOUND_EXPIRATION_MS = 5000;
+
     public ReactToSoundGoal(Mob mob, double speed, int range, List<SoundGroupData> soundGroups) {
         this.mob = mob;
         this.speed = speed;
@@ -39,6 +49,12 @@ public class ReactToSoundGoal extends Goal {
 
     @Override
     public boolean canUse() {
+        // Si el sonido pointblank ha expirado, se reinicia la variable
+        if (lastPointBlankSoundPos != null &&
+                System.currentTimeMillis() - lastPointBlankSoundTimestamp > POINT_BLANK_SOUND_EXPIRATION_MS) {
+            lastPointBlankSoundPos = null;
+        }
+
         Vec3 mobCenterPos = mob.position();
         double effectiveRange = range;
         double effectiveSpeed = speed;
@@ -80,9 +96,15 @@ public class ReactToSoundGoal extends Goal {
             soundTriggered = mobCenterPos.distanceTo(soundEventPos) <= groupEffectiveRange;
         }
 
+        // Detección del sonido "pointblank" recibido por red (o capturado localmente)
+        boolean pointBlankTriggered = false;
+        if (lastPointBlankSoundPos != null) {
+            pointBlankTriggered = mobCenterPos.distanceTo(lastPointBlankSoundPos) <= effectiveRange;
+        }
+
         boolean hurtTriggered = !(mob instanceof Monster) && lastAttackerPos != null;
 
-        return gunshotTriggered || soundTriggered || hurtTriggered;
+        return gunshotTriggered || soundTriggered || pointBlankTriggered || hurtTriggered;
     }
 
     @Override
@@ -105,6 +127,12 @@ public class ReactToSoundGoal extends Goal {
     }
 
     private void updateNavigation() {
+        // Si el sonido pointblank ha expirado, se reinicia la variable
+        if (lastPointBlankSoundPos != null &&
+                System.currentTimeMillis() - lastPointBlankSoundTimestamp > POINT_BLANK_SOUND_EXPIRATION_MS) {
+            lastPointBlankSoundPos = null;
+        }
+
         Vec3 currentPos = mob.position();
         Vec3 target = null;
         double effectiveRange = range;
@@ -150,6 +178,8 @@ public class ReactToSoundGoal extends Goal {
                 target = new Vec3(gunshotData.position.x, mob.getY(), gunshotData.position.z);
             } else if (soundEventPos != null && currentPos.distanceTo(soundEventPos) <= effectiveRange) {
                 target = new Vec3(soundEventPos.x, mob.getY(), soundEventPos.z);
+            } else if (lastPointBlankSoundPos != null && currentPos.distanceTo(lastPointBlankSoundPos) <= effectiveRange) {
+                target = new Vec3(lastPointBlankSoundPos.x, mob.getY(), lastPointBlankSoundPos.z);
             }
         } else {
             if (lastAttackerPos != null) {
@@ -171,6 +201,12 @@ public class ReactToSoundGoal extends Goal {
                     diff = new Vec3(1, 0, 0);
                 }
                 target = currentPos.add(diff.normalize());
+            } else if (lastPointBlankSoundPos != null && currentPos.distanceTo(lastPointBlankSoundPos) <= effectiveRange) {
+                Vec3 diff = currentPos.subtract(lastPointBlankSoundPos);
+                if (diff.lengthSqr() < 1e-4) {
+                    diff = new Vec3(1, 0, 0);
+                }
+                target = currentPos.add(diff.normalize().scale(effectiveRange));
             }
         }
 
@@ -190,6 +226,43 @@ public class ReactToSoundGoal extends Goal {
                         goal.onHurt(event.getSource().getEntity().position());
                     }
                 }
+            }
+        }
+    }
+
+    @Mod.EventBusSubscriber(modid = "ezvcsurvival", value = Dist.CLIENT)
+    public static class PointBlankSoundEventHandler {
+        @SubscribeEvent
+        public static void onPlaySound(PlaySoundEvent event) {
+            ResourceLocation soundRes = event.getSound().getLocation();
+            if (soundRes.getNamespace().equals("pointblank") && !soundRes.getPath().contains("_s")
+                    && !soundRes.getPath().contains("_magin")
+                    && !soundRes.getPath().contains("_magout")
+                    && !soundRes.getPath().contains("_reload")
+                    && !soundRes.getPath().contains("_draw")
+                    && !soundRes.getPath().contains("draw")
+                    && !soundRes.getPath().contains("_open")
+                    && !soundRes.getPath().contains("_close")
+                    && !soundRes.getPath().contains("_hit")
+                    && !soundRes.getPath().contains("_slide")
+                    && !soundRes.getPath().contains("added")
+                    && !soundRes.getPath().contains("removed")
+                    && !soundRes.getPath().contains("_unload")
+                    && !soundRes.getPath().contains("_load")) {
+                lastPointBlankSoundPos = new Vec3(
+                        event.getSound().getX(),
+                        event.getSound().getY(),
+                        event.getSound().getZ()
+                );
+                lastPointBlankSoundTimestamp = System.currentTimeMillis();
+                EZVCNetwork.INSTANCE.sendToServer(
+                        new PointBlankSoundPacket(
+                                soundRes,
+                                event.getSound().getX(),
+                                event.getSound().getY(),
+                                event.getSound().getZ()
+                        )
+                );
             }
         }
     }

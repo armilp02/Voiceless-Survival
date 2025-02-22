@@ -1,5 +1,6 @@
 package com.armilp.ezvcsurvival.network;
 
+import com.armilp.ezvcsurvival.commands.SoundEffectCommand;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkEvent;
@@ -24,7 +25,7 @@ public class SoundPlayedPacket {
         ctx.get().enqueueWork(() -> {
             ServerPlayer player = ctx.get().getSender();
             if (player != null) {
-                com.armilp.ezvcsurvival.commands.SoundEffectCommand.applyEffect(player);
+                SoundEffectCommand.applyEffect(player);
             }
         });
         ctx.get().setPacketHandled(true);

@@ -8,8 +8,6 @@ import de.maxhenkel.voicechat.api.events.MicrophonePacketEvent;
 import de.maxhenkel.voicechat.api.opus.OpusDecoder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.commands.CommandSourceStack;
 import net.minecraftforge.fml.common.Mod;
 import com.armilp.ezvcsurvival.config.VoiceConfig;
 
@@ -24,14 +22,12 @@ import java.util.concurrent.TimeUnit;
 @Mod.EventBusSubscriber(modid = "ezvcsurvival")
 public class Plugin implements VoicechatPlugin {
 
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private static final Map<UUID, SoundData> playerSoundLocations = new ConcurrentHashMap<>();
 
-    // Para controlar cuándo se aplica el efecto al hablar
     private static final Map<UUID, Long> lastVoiceEffectTime = new ConcurrentHashMap<>();
-    private static final long VOICE_EFFECT_COOLDOWN_MS = 5000; // 5 segundos de cooldown
-    private static final double VOICE_EFFECT_THRESHOLD = -30.0; // Umbral para activar el efecto
+    private static final long DEATH_ANGELS_EFFECT_COOLDOWN_MS = 3000;
 
     private static VoicechatApi voicechatApi;
 
@@ -94,13 +90,11 @@ public class Plugin implements VoicechatPlugin {
     }
 
     public void onMicrophonePacket(MicrophonePacketEvent event) {
-        // Obtenemos el jugador que envía el paquete
         VoicechatConnection sender = event.getSenderConnection();
         if (sender == null || sender.getPlayer() == null) {
             return;
         }
 
-        // Evitamos procesar si el jugador está en modo creativo
         if (sender.getPlayer().getPlayer() instanceof ServerPlayer player && player.isCreative()) {
             return;
         }
@@ -139,9 +133,9 @@ public class Plugin implements VoicechatPlugin {
         }
 
         long currentTime = System.currentTimeMillis();
-        if (perceivedIntensity >= VOICE_EFFECT_THRESHOLD) {
+        if (perceivedIntensity >= VoiceConfig.DEATH_ANGELS_THRESHOLD.get()) {
             if (!lastVoiceEffectTime.containsKey(playerUUID) ||
-                    currentTime - lastVoiceEffectTime.get(playerUUID) > VOICE_EFFECT_COOLDOWN_MS) {
+                    currentTime - lastVoiceEffectTime.get(playerUUID) > DEATH_ANGELS_EFFECT_COOLDOWN_MS) {
                 if (sender.getPlayer().getPlayer() instanceof ServerPlayer serverPlayer) {
                     SoundEffectCommand.applyEffect(serverPlayer);
                     lastVoiceEffectTime.put(playerUUID, currentTime);

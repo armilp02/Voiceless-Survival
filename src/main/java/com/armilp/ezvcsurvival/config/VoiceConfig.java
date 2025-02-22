@@ -19,6 +19,9 @@ public class VoiceConfig {
     public static final ForgeConfigSpec.DoubleValue THUNDER_RANGE_MULTIPLIER;
     public static final ForgeConfigSpec.DoubleValue SNEAKING_RANGE_MULTIPLIER;
 
+    // Nueva opción para el umbral del efecto "death_angels"
+    public static final ForgeConfigSpec.DoubleValue DEATH_ANGELS_THRESHOLD;
+
     static {
 
         BUILDER.comment("FollowVoice Config",
@@ -64,6 +67,13 @@ public class VoiceConfig {
         SNEAKING_RANGE_MULTIPLIER = BUILDER.defineInRange("sneaking_range_multiplier", 0.5, 0.0, 1.0);
         BUILDER.pop();
 
+        BUILDER.comment("Death Angels Mod Config",
+                        "Defines the threshold detection (how hard the player must speak)",
+                        "You need this mod for this parameter: https://www.curseforge.com/minecraft/mc-mods/death-angels")
+                .push("death_angels_config");
+        DEATH_ANGELS_THRESHOLD = BUILDER.defineInRange("death_angels_threshold", -30.0, -127.0, 0.0);
+        BUILDER.pop();
+
         CONFIG = BUILDER.build();
     }
 
@@ -90,7 +100,6 @@ public class VoiceConfig {
         }
         return parsedConfigs;
     }
-
 
     public static Map<String, Map<String, Double>> getAnimalVoiceConfigs() {
         Map<String, Map<String, Double>> parsedConfigs = new HashMap<>();

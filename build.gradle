@@ -85,7 +85,7 @@ repositories {
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 
-    implementation fg.deobf('curse.maven:timeless-and-classics-zero-1028108:5529117-sources-5529578')
+    implementation fg.deobf("curse.maven:timeless-and-classics-zero-1028108:6069384")
     implementation "de.maxhenkel.voicechat:voicechat-api:${voicechat_api_version}"
     runtimeOnly fg.deobf("maven.modrinth:simple-voice-chat:forge-${voicechat_version}")
 
@@ -134,6 +134,8 @@ tasks.register('publishCurseForge', TaskPublishCurseForge) {
 
     mainFile.addRequirement("simple-voice-chat")
     mainFile.addOptional("timeless-and-classics-zero")
+    mainFile.addOptional("death-angels")
+    mainFile.addOptional("vics-point-blank")
 }
 
 
@@ -152,6 +154,7 @@ modrinth {
     dependencies {
         required.project 'simple-voice-chat'
         optional.project 'timeless-and-classics-zero'
+        optional.project 'vics-point-blank'
     }
 }
 

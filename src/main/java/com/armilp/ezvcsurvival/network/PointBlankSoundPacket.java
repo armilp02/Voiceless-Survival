@@ -1,0 +1,46 @@
+package com.armilp.ezvcsurvival.network;
+
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.network.NetworkEvent;
+
+import java.util.function.Supplier;
+
+public class PointBlankSoundPacket {
+    private final ResourceLocation sound;
+    private final double x;
+    private final double y;
+    private final double z;
+
+    public PointBlankSoundPacket(ResourceLocation sound, double x, double y, double z) {
+        this.sound = sound;
+        this.x = x;
+        this.y = y;
+        this.z = z;
+    }
+
+    public static void encode(PointBlankSoundPacket packet, FriendlyByteBuf buf) {
+        buf.writeResourceLocation(packet.sound);
+        buf.writeDouble(packet.x);
+        buf.writeDouble(packet.y);
+        buf.writeDouble(packet.z);
+    }
+
+    public static PointBlankSoundPacket decode(FriendlyByteBuf buf) {
+        ResourceLocation sound = buf.readResourceLocation();
+        double x = buf.readDouble();
+        double y = buf.readDouble();
+        double z = buf.readDouble();
+        return new PointBlankSoundPacket(sound, x, y, z);
+    }
+
+    public static void handle(PointBlankSoundPacket packet, Supplier<NetworkEvent.Context> ctx) {
+        ctx.get().enqueueWork(() -> {
+            // Se actualiza la posición en el SoundEventTracker solo si el sonido pertenece a "pointblank"
+            if (packet.sound.getNamespace().equals("pointblank") && !packet.sound.getPath().contains("_s")) {
+                com.armilp.ezvcsurvival.events.SoundEventTracker.setLastPlayedPosition(packet.sound, packet.x, packet.y, packet.z);
+            }
+        });
+        ctx.get().setPacketHandled(true);
+    }
+}
