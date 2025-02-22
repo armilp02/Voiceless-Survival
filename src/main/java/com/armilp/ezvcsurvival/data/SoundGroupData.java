@@ -15,10 +15,6 @@ public class SoundGroupData {
         this.rangeMultiplier = rangeMultiplier;
     }
 
-    public String getGroupName() {
-        return groupName;
-    }
-
     public List<String> getSounds() {
         return sounds;
     }
@@ -29,5 +25,9 @@ public class SoundGroupData {
 
     public double getRangeMultiplier() {
         return rangeMultiplier;
+    }
+
+    public List<String> getSoundList() {
+        return sounds;
     }
 }

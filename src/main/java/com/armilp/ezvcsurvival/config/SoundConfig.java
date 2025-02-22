@@ -17,6 +17,9 @@ public class SoundConfig {
     private static final Map<String, SoundGroupData> soundGroupDataMap = new HashMap<>();
     private static final Map<String, Map<String, Object>> mobReactionsMap = new HashMap<>();
 
+    // Grupo interno para sonidos de pointblank (no visible en la configuración)
+    private static final String INTERNAL_POINTBLANK_GROUP = "pointblank_internal";
+
     public static final ModConfigSpec SPEC;
 
     static {
@@ -52,10 +55,11 @@ public class SoundConfig {
         SPEC = builder.build();
     }
 
+    // IMPORTANTE: Asegúrate de registrar esta clase en el bus de eventos de NeoForge.
     @SubscribeEvent
     public static void onModConfigReload(ModConfigEvent.Reloading event) {
         if (event.getConfig().getSpec() == SPEC) {
-            EZVCSurvival.LOGGER.info("Recargando la configuración de EZVCSurvival...");
+            EZVCSurvival.LOGGER.info("Reloading EZVCSurvival configuration...");
             loadConfigs();
         }
     }
@@ -63,12 +67,15 @@ public class SoundConfig {
     public static void loadConfigs() {
         loadSoundGroups();
         loadMobSoundReactions();
+        // Aseguramos que exista el grupo interno para pointblank
+        soundGroupDataMap.computeIfAbsent(INTERNAL_POINTBLANK_GROUP,
+                k -> new SoundGroupData(INTERNAL_POINTBLANK_GROUP, new ArrayList<>(), 1.0, 1.0));
     }
 
     private static void loadSoundGroups() {
         soundGroupDataMap.clear();
         List<? extends String> groups = SOUND_GROUPS.get();
-        if (groups.isEmpty()) {
+        if (groups == null || groups.isEmpty()) {
             groups = List.of(
                     "wood_sounds=block.wood.break,block.wood.hit,block.wood.place,1.0,1.0",
                     "animal_hurts=entity.cow.hurt,entity.pig.hurt"
@@ -77,7 +84,7 @@ public class SoundConfig {
         for (String entry : groups) {
             String[] parts = entry.split("=", 2);
             if (parts.length < 2) {
-                EZVCSurvival.LOGGER.warn("Entrada de grupo de sonido inválida: " + entry);
+                EZVCSurvival.LOGGER.warn("Invalid sound group entry: " + entry);
                 continue;
             }
             String groupName = parts[0].trim();
@@ -95,7 +102,7 @@ public class SoundConfig {
                         tokens = tokens.subList(2, tokens.size());
                     }
                 } catch (NumberFormatException e) {
-                    EZVCSurvival.LOGGER.warn("Error al parsear multiplicadores en la entrada: " + entry);
+                    EZVCSurvival.LOGGER.warn("Error parsing multipliers in entry: " + entry);
                 }
             } else if (tokens.size() >= 3) {
                 try {
@@ -103,11 +110,11 @@ public class SoundConfig {
                     rangeMult = Double.parseDouble(tokens.get(tokens.size() - 1));
                     tokens = tokens.subList(0, tokens.size() - 2);
                 } catch (NumberFormatException e) {
-                    EZVCSurvival.LOGGER.warn("Error al parsear multiplicadores en la entrada: " + entry);
+                    EZVCSurvival.LOGGER.warn("Error parsing multipliers in entry: " + entry);
                 }
             }
             if (tokens.isEmpty()) {
-                EZVCSurvival.LOGGER.warn("No se definieron sonidos para el grupo: " + groupName);
+                EZVCSurvival.LOGGER.warn("No sounds defined for group: " + groupName);
                 continue;
             }
             SoundGroupData data = new SoundGroupData(groupName, tokens, speedMult, rangeMult);
@@ -118,7 +125,7 @@ public class SoundConfig {
     private static void loadMobSoundReactions() {
         mobReactionsMap.clear();
         List<? extends String> reactions = MOB_SOUND_REACTIONS.get();
-        if (reactions.isEmpty()) {
+        if (reactions == null || reactions.isEmpty()) {
             reactions = List.of(
                     "minecraft:zombie=speed=1.5,range=20,groups=wood_sounds",
                     "minecraft:cow=speed=1.8,range=16,groups=animal_hurts"
@@ -127,7 +134,7 @@ public class SoundConfig {
         for (String entry : reactions) {
             String[] parts = entry.split("=", 2);
             if (parts.length < 2) {
-                EZVCSurvival.LOGGER.warn("Entrada de reacción para mob inválida: " + entry);
+                EZVCSurvival.LOGGER.warn("Invalid mob reaction entry: " + entry);
                 continue;
             }
             String mobId = parts[0].trim();
@@ -157,7 +164,7 @@ public class SoundConfig {
                 }
             }
             if (map.isEmpty()) {
-                EZVCSurvival.LOGGER.warn("No se definió una reacción válida para el mob: " + mobId);
+                EZVCSurvival.LOGGER.warn("No valid reaction defined for mob: " + mobId);
             } else {
                 mobReactionsMap.put(mobId, map);
             }
@@ -172,6 +179,14 @@ public class SoundConfig {
         }
     }
 
+    public static void registerPointblankSound(String soundLocation) {
+        SoundGroupData group = soundGroupDataMap.computeIfAbsent(INTERNAL_POINTBLANK_GROUP,
+                k -> new SoundGroupData(k, new ArrayList<>(), 1.2, 1.5));
+        if (!group.getSoundList().contains(soundLocation)) {
+            group.getSoundList().add(soundLocation);
+        }
+    }
+
     public static List<SoundGroupData> getSoundGroupsForMob(String mobId) {
         List<SoundGroupData> list = new ArrayList<>();
         Map<String, Object> reaction = mobReactionsMap.get(mobId);
@@ -183,9 +198,14 @@ public class SoundConfig {
                 if (data != null) {
                     list.add(data);
                 } else {
-                    EZVCSurvival.LOGGER.warn("No se encontró el grupo: " + group + " para el mob: " + mobId);
+                    EZVCSurvival.LOGGER.warn("Group not found: " + group + " for mob: " + mobId);
                 }
             }
+        }
+        // Siempre se añade el grupo interno si tiene sonidos registrados
+        SoundGroupData internalGroup = soundGroupDataMap.get(INTERNAL_POINTBLANK_GROUP);
+        if (internalGroup != null && !internalGroup.getSoundList().isEmpty() && !list.contains(internalGroup)) {
+            list.add(internalGroup);
         }
         return list;
     }

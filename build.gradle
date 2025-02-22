@@ -123,6 +123,7 @@ tasks.register('publishCurseForge', TaskPublishCurseForge) {
     mainFile.changelog = changelogText
 
     mainFile.addRequirement("simple-voice-chat")
+    mainFile.addOptional("vics-point-blank")
 }
 
 modrinth {
@@ -139,6 +140,7 @@ modrinth {
 
     dependencies { // A special DSL for creating dependencies
         required.project 'simple-voice-chat'
+        optional.project 'vics-point-blank'
     }
 }
 
