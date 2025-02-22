@@ -1,8 +1,6 @@
 package com.armilp.ezvcsurvival.goals;
 
 import com.armilp.ezvcsurvival.Plugin;
-import de.maxhenkel.voicechat.api.Player;
-import net.minecraft.entity.Entity;
 import net.minecraft.entity.MobEntity;
 import net.minecraft.entity.ai.goal.Goal;
 import net.minecraft.entity.player.PlayerEntity;
@@ -32,7 +30,9 @@ public class FollowVoiceGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        // Detecta el último sonido o un jugador cercano
+        if (mob.getTarget() != null) {
+            return false;
+        }
         targetPlayer = getNearestPlayerInRange();
         targetSoundPosition = Plugin.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange);
         return targetPlayer != null || targetSoundPosition != null;
@@ -49,6 +49,9 @@ public class FollowVoiceGoal extends Goal {
 
     @Override
     public boolean canContinueToUse() {
+        if (mob.getTarget() != null) {
+            return false;
+        }
         return targetPlayer != null || (targetSoundPosition != null && !mob.getNavigation().isDone());
     }
 

@@ -4,15 +4,11 @@ import com.armilp.ezvcsurvival.data.TimedSoundData;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.vector.Vector3d;
 
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class SoundEventTracker {
-    // Time (in ms) during which the sound record is considered "active" (3 seconds)
     private static final long SOUND_EXPIRATION_MS = 3000;
-
-    // We use ConcurrentHashMap to allow concurrent modifications without exceptions
     private static final Map<ResourceLocation, TimedSoundData> lastPlayedPositions = new ConcurrentHashMap<>();
 
     public static void registerSound(ResourceLocation soundLocation, Vector3d position) {
@@ -20,21 +16,12 @@ public class SoundEventTracker {
         lastPlayedPositions.put(soundLocation, new TimedSoundData(position, now));
     }
 
-    public static Vector3d getLastPlayedPositionForAny(List<ResourceLocation> soundLocations) {
+    public static Vector3d getLastPlayedPositionForSound(ResourceLocation soundLocation) {
         long now = System.currentTimeMillis();
-        cleanupExpired(now);
-        for (ResourceLocation loc : soundLocations) {
-            TimedSoundData event = lastPlayedPositions.get(loc);
-            if (event != null) {
-                return event.position;
-            }
+        TimedSoundData data = lastPlayedPositions.get(soundLocation);
+        if (data != null && (now - data.timestamp <= SOUND_EXPIRATION_MS)) {
+            return data.position;
         }
         return null;
-    }
-
-    // Removes expired entries from the map.
-    private static void cleanupExpired(long currentTime) {
-        lastPlayedPositions.entrySet().removeIf(entry ->
-                currentTime - entry.getValue().timestamp > SOUND_EXPIRATION_MS);
     }
 }
