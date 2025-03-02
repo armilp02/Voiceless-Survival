@@ -12,6 +12,7 @@ public class VoiceConfig {
 
     private static final ForgeConfigSpec.ConfigValue<List<? extends String>> MOB_VOICE_CONFIGS;
     private static final ForgeConfigSpec.ConfigValue<List<? extends String>> ANIMAL_VOICE_CONFIGS;
+    public static final ForgeConfigSpec.ConfigValue<List<? extends String>> ARMOR_EFFECTS;
 
     public static final ForgeConfigSpec.DoubleValue WHISPER_RANGE_MULTIPLIER;
     public static final ForgeConfigSpec.DoubleValue WHISPER_SPEED_MULTIPLIER;
@@ -19,7 +20,6 @@ public class VoiceConfig {
     public static final ForgeConfigSpec.DoubleValue THUNDER_RANGE_MULTIPLIER;
     public static final ForgeConfigSpec.DoubleValue SNEAKING_RANGE_MULTIPLIER;
 
-    // Nueva opción para el umbral del efecto "death_angels"
     public static final ForgeConfigSpec.DoubleValue DEATH_ANGELS_THRESHOLD;
 
     static {
@@ -65,6 +65,17 @@ public class VoiceConfig {
                 .push("misc_config");
         THUNDER_RANGE_MULTIPLIER = BUILDER.defineInRange("thunder_range_multiplier", 0.5, 0.0, 1.0);
         SNEAKING_RANGE_MULTIPLIER = BUILDER.defineInRange("sneaking_range_multiplier", 0.5, 0.0, 1.0);
+        BUILDER.pop();
+
+        BUILDER.comment("Armor Effects Config",
+                "Define multipliers for mob detection range and speed when a player wears specific armor items.",
+                "Format: item_id=speedMultiplier,rangeMultiplier",
+                "Example: minecraft:diamond_helmet=0.5,0.5");
+        BUILDER.push("armor_effects");
+        ARMOR_EFFECTS = BUILDER.defineList("effects",
+                () -> List.of("minecraft:diamond_helmet=1.0,0.5", "minecraft:diamond_chestplate=1.0,0.7"),
+                obj -> obj instanceof String && ((String) obj).contains("=")
+        );
         BUILDER.pop();
 
         BUILDER.comment("Death Angels Mod Config",

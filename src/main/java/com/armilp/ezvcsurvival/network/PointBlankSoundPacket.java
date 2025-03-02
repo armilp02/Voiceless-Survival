@@ -1,5 +1,6 @@
 package com.armilp.ezvcsurvival.network;
 
+import com.armilp.ezvcsurvival.events.SoundEventTracker;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.network.NetworkEvent;
@@ -11,12 +12,16 @@ public class PointBlankSoundPacket {
     private final double x;
     private final double y;
     private final double z;
+    private final double speedMultiplier;
+    private final double rangeMultiplier;
 
-    public PointBlankSoundPacket(ResourceLocation sound, double x, double y, double z) {
+    public PointBlankSoundPacket(ResourceLocation sound, double x, double y, double z, double speedMultiplier, double rangeMultiplier) {
         this.sound = sound;
         this.x = x;
         this.y = y;
         this.z = z;
+        this.speedMultiplier = speedMultiplier;
+        this.rangeMultiplier = rangeMultiplier;
     }
 
     public static void encode(PointBlankSoundPacket packet, FriendlyByteBuf buf) {
@@ -24,6 +29,8 @@ public class PointBlankSoundPacket {
         buf.writeDouble(packet.x);
         buf.writeDouble(packet.y);
         buf.writeDouble(packet.z);
+        buf.writeDouble(packet.speedMultiplier);
+        buf.writeDouble(packet.rangeMultiplier);
     }
 
     public static PointBlankSoundPacket decode(FriendlyByteBuf buf) {
@@ -31,15 +38,21 @@ public class PointBlankSoundPacket {
         double x = buf.readDouble();
         double y = buf.readDouble();
         double z = buf.readDouble();
-        return new PointBlankSoundPacket(sound, x, y, z);
+        double speedMultiplier = buf.readDouble();
+        double rangeMultiplier = buf.readDouble();
+        return new PointBlankSoundPacket(sound, x, y, z, speedMultiplier, rangeMultiplier);
     }
 
     public static void handle(PointBlankSoundPacket packet, Supplier<NetworkEvent.Context> ctx) {
         ctx.get().enqueueWork(() -> {
-            // Se actualiza la posición en el SoundEventTracker solo si el sonido pertenece a "pointblank"
-            if (packet.sound.getNamespace().equals("pointblank") && !packet.sound.getPath().contains("_s")) {
-                com.armilp.ezvcsurvival.events.SoundEventTracker.setLastPlayedPosition(packet.sound, packet.x, packet.y, packet.z);
-            }
+            SoundEventTracker.setLastPlayedPosition(
+                    packet.sound,
+                    packet.x,
+                    packet.y,
+                    packet.z,
+                    packet.speedMultiplier,
+                    packet.rangeMultiplier
+            );
         });
         ctx.get().setPacketHandled(true);
     }

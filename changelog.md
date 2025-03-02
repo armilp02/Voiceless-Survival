@@ -1,9 +1,21 @@
-### Changelog
+### Version 1.0.0
+**Warning:** Before installing this version, make sure to back up your previous configurations.
 
-#### Version 0.8.6
+**Fixes:**
+- Gun type modifiers now correctly update via `sounds.toml`.
+- Guns modifiers speed reduced.
+- Improved gun fire detection for Vic's Point Blank mod.
 
-- Compatibility Vic's Point Blank Guns
-  - Mobs can detect sounds from Vic's Point Blank Guns (the mobs configured in the `sounds.toml` file).
-  - Silencers from Vic's Point Blank Guns are not detected by mobs.
-- Improved silencer detection for TACZ guns.
-- Added a new threshold configuration for [Death Angels Mod](https://www.curseforge.com/minecraft/mc-mods/death-angels).
+**Added:**
+- *Sound Physics Remastered Compatibility:* 
+  Now supports microphone detection. Based on sound reflections, this feature adjusts mob detection range and speed as configured in `voices.toml`.
+
+
+- *New `thunder_range_multiplier` Option:*
+  A new setting in `sounds.toml` that reduces sound range during rain or thunderstorms.
+
+
+- *Armor Effects:*
+  Armor pieces can now reduce detection range and mob speed when worn.  
+
+

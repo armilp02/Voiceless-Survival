@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class SoundEventTracker {
-    private static final long SOUND_EXPIRATION_MS = 3000;
+    private static final long SOUND_EXPIRATION_MS = 4000;
     private static final Map<ResourceLocation, TimedSoundData> lastPlayedPositions = new ConcurrentHashMap<>();
 
     public static void registerSound(ResourceLocation soundLocation, Vec3 position) {
@@ -16,8 +16,8 @@ public class SoundEventTracker {
         lastPlayedPositions.put(soundLocation, new TimedSoundData(position, now));
     }
 
-    public static void setLastPlayedPosition(ResourceLocation sound, double x, double y, double z) {
-        lastPlayedPositions.put(sound, new TimedSoundData(new Vec3(x, y, z), System.currentTimeMillis()));
+    public static void setLastPlayedPosition(ResourceLocation sound, double x, double y, double z, double speedMultiplier, double rangeMultiplier) {
+        lastPlayedPositions.put(sound, new TimedSoundData(new Vec3(x, y, z), System.currentTimeMillis(), speedMultiplier, rangeMultiplier));
     }
 
     public static Vec3 getLastPlayedPositionForSound(ResourceLocation soundLocation) {

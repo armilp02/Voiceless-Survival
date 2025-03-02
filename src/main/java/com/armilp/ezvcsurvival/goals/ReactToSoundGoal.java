@@ -8,6 +8,7 @@ import com.armilp.ezvcsurvival.events.SoundEventTracker;
 import com.armilp.ezvcsurvival.config.SoundConfig;
 import com.armilp.ezvcsurvival.network.EZVCNetwork;
 import com.armilp.ezvcsurvival.network.PointBlankSoundPacket;
+import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Mob;
@@ -33,10 +34,9 @@ public class ReactToSoundGoal extends Goal {
     private Vec3 lastAttackerPos = null;
     private static final List<ReactToSoundGoal> activeGoals = new CopyOnWriteArrayList<>();
 
-    // Variables para almacenar la última posición del sonido "pointblank" y su timestamp
-    private static Vec3 lastPointBlankSoundPos = null;
-    private static long lastPointBlankSoundTimestamp = 0;
-    // Tiempo de expiración en milisegundos (5000 ms = 5 segundos)
+    public static Vec3 lastPointBlankSoundPos = null;
+    public static long lastPointBlankSoundTimestamp = 0;
+    public static String lastPointBlankGunType = null;
     private static final long POINT_BLANK_SOUND_EXPIRATION_MS = 5000;
 
     public ReactToSoundGoal(Mob mob, double speed, int range, List<SoundGroupData> soundGroups) {
@@ -49,29 +49,41 @@ public class ReactToSoundGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        // Si el sonido pointblank ha expirado, se reinicia la variable
         if (lastPointBlankSoundPos != null &&
                 System.currentTimeMillis() - lastPointBlankSoundTimestamp > POINT_BLANK_SOUND_EXPIRATION_MS) {
             lastPointBlankSoundPos = null;
+            lastPointBlankGunType = null;
         }
 
         Vec3 mobCenterPos = mob.position();
         double effectiveRange = range;
         double effectiveSpeed = speed;
+        String effectiveGunType = null;
 
         GunshotData gunshotData = GunFireListener.getLastGunshotData();
         if (gunshotData != null) {
-            double rangeMultiplier = SoundConfig.getRangeMultiplier(gunshotData.gunType.name().toLowerCase());
-            effectiveRange = (int)(range * rangeMultiplier);
-            double speedMultiplier = SoundConfig.getSpeedMultiplier(gunshotData.gunType.name().toLowerCase());
-            effectiveSpeed = speed * speedMultiplier;
+            effectiveGunType = gunshotData.gunType.name().toLowerCase();
+        } else if (lastPointBlankSoundPos != null && lastPointBlankGunType != null) {
+            effectiveGunType = lastPointBlankGunType;
         }
 
-        boolean gunshotTriggered = false;
-        if (gunshotData != null) {
-            double gunDistance = mobCenterPos.distanceTo(gunshotData.position);
-            gunshotTriggered = gunDistance <= effectiveRange;
+        if (effectiveGunType != null) {
+            double rangeMultiplier, speedMultiplier;
+            if (lastPointBlankSoundPos != null) {
+                rangeMultiplier = SoundConfig.getPointBlankRangeMultiplier(effectiveGunType);
+                speedMultiplier = SoundConfig.getPointBlankSpeedMultiplier(effectiveGunType);
+            } else {
+                rangeMultiplier = SoundConfig.getRangeMultiplier(effectiveGunType);
+                speedMultiplier = SoundConfig.getSpeedMultiplier(effectiveGunType);
+            }
+            effectiveRange = (int) (range * rangeMultiplier);
+            effectiveSpeed = speed * speedMultiplier;
         }
+        if (mob.level().isRaining() || mob.level().isThundering()) {
+            effectiveRange *= SoundConfig.THUNDER_RANGE_MULTIPLIER.get();
+        }
+
+        boolean gunshotTriggered = gunshotData != null && mobCenterPos.distanceTo(gunshotData.position) <= effectiveRange;
 
         Vec3 soundEventPos = null;
         double groupSpeedMult = 1.0;
@@ -93,14 +105,13 @@ public class ReactToSoundGoal extends Goal {
         boolean soundTriggered = false;
         if (soundEventPos != null) {
             double groupEffectiveRange = range * groupRangeMult;
+            if (mob.level().isRaining() || mob.level().isThundering()) {
+                groupEffectiveRange *= SoundConfig.THUNDER_RANGE_MULTIPLIER.get();
+            }
             soundTriggered = mobCenterPos.distanceTo(soundEventPos) <= groupEffectiveRange;
         }
 
-        // Detección del sonido "pointblank" recibido por red (o capturado localmente)
-        boolean pointBlankTriggered = false;
-        if (lastPointBlankSoundPos != null) {
-            pointBlankTriggered = mobCenterPos.distanceTo(lastPointBlankSoundPos) <= effectiveRange;
-        }
+        boolean pointBlankTriggered = lastPointBlankSoundPos != null && mobCenterPos.distanceTo(lastPointBlankSoundPos) <= effectiveRange;
 
         boolean hurtTriggered = !(mob instanceof Monster) && lastAttackerPos != null;
 
@@ -127,23 +138,40 @@ public class ReactToSoundGoal extends Goal {
     }
 
     private void updateNavigation() {
-        // Si el sonido pointblank ha expirado, se reinicia la variable
         if (lastPointBlankSoundPos != null &&
                 System.currentTimeMillis() - lastPointBlankSoundTimestamp > POINT_BLANK_SOUND_EXPIRATION_MS) {
             lastPointBlankSoundPos = null;
+            lastPointBlankGunType = null;
         }
 
         Vec3 currentPos = mob.position();
         Vec3 target = null;
         double effectiveRange = range;
         double effectiveSpeed = speed;
+        String effectiveGunType = null;
 
         GunshotData gunshotData = GunFireListener.getLastGunshotData();
         if (gunshotData != null) {
-            double rangeMultiplier = SoundConfig.getRangeMultiplier(gunshotData.gunType.name().toLowerCase());
-            effectiveRange = (int)(range * rangeMultiplier);
-            double speedMultiplier = SoundConfig.getSpeedMultiplier(gunshotData.gunType.name().toLowerCase());
+            effectiveGunType = gunshotData.gunType.name().toLowerCase();
+        } else if (lastPointBlankSoundPos != null && lastPointBlankGunType != null) {
+            effectiveGunType = lastPointBlankGunType;
+        }
+
+        if (effectiveGunType != null) {
+            double rangeMultiplier, speedMultiplier;
+            if (lastPointBlankSoundPos != null) {
+                rangeMultiplier = SoundConfig.getPointBlankRangeMultiplier(effectiveGunType);
+                speedMultiplier = SoundConfig.getPointBlankSpeedMultiplier(effectiveGunType);
+            } else {
+                rangeMultiplier = SoundConfig.getRangeMultiplier(effectiveGunType);
+                speedMultiplier = SoundConfig.getSpeedMultiplier(effectiveGunType);
+            }
+            effectiveRange = (int) (range * rangeMultiplier);
             effectiveSpeed = speed * speedMultiplier;
+        }
+
+        if (mob.level().isRaining() || mob.level().isThundering()) {
+            effectiveRange *= SoundConfig.THUNDER_RANGE_MULTIPLIER.get();
         }
 
         Vec3 soundEventPos = null;
@@ -163,7 +191,7 @@ public class ReactToSoundGoal extends Goal {
             }
         }
         if (soundEventPos != null) {
-            effectiveRange = (int)(range * groupRangeMult);
+            effectiveRange = (int) (range * groupRangeMult);
             effectiveSpeed = speed * groupSpeedMult;
         }
 
@@ -179,7 +207,9 @@ public class ReactToSoundGoal extends Goal {
             } else if (soundEventPos != null && currentPos.distanceTo(soundEventPos) <= effectiveRange) {
                 target = new Vec3(soundEventPos.x, mob.getY(), soundEventPos.z);
             } else if (lastPointBlankSoundPos != null && currentPos.distanceTo(lastPointBlankSoundPos) <= effectiveRange) {
-                target = new Vec3(lastPointBlankSoundPos.x, mob.getY(), lastPointBlankSoundPos.z);
+                double offsetX = (Math.random() - 0.5) * 2;
+                double offsetZ = (Math.random() - 0.5) * 2;
+                target = new Vec3(lastPointBlankSoundPos.x + offsetX, mob.getY(), lastPointBlankSoundPos.z + offsetZ);
             }
         } else {
             if (lastAttackerPos != null) {
@@ -200,19 +230,26 @@ public class ReactToSoundGoal extends Goal {
                 if (diff.lengthSqr() < 1e-4) {
                     diff = new Vec3(1, 0, 0);
                 }
-                target = currentPos.add(diff.normalize());
+                target = currentPos.add(diff.normalize().scale(effectiveRange));
             } else if (lastPointBlankSoundPos != null && currentPos.distanceTo(lastPointBlankSoundPos) <= effectiveRange) {
                 Vec3 diff = currentPos.subtract(lastPointBlankSoundPos);
                 if (diff.lengthSqr() < 1e-4) {
                     diff = new Vec3(1, 0, 0);
                 }
-                target = currentPos.add(diff.normalize().scale(effectiveRange));
+                double offsetX = (Math.random() - 0.5) * 2;
+                double offsetZ = (Math.random() - 0.5) * 2;
+                target = currentPos.add(diff.normalize().scale(effectiveRange)).add(new Vec3(offsetX, 0, offsetZ));
             }
         }
 
         if (target != null) {
             target = new Vec3(target.x, mob.getY(), target.z);
             mob.getNavigation().moveTo(target.x, target.y, target.z, effectiveSpeed);
+            if (currentPos.distanceTo(target) < 1.0) {
+                lastPointBlankSoundPos = null;
+                lastPointBlankGunType = null;
+                stop();
+            }
         }
     }
 
@@ -226,43 +263,6 @@ public class ReactToSoundGoal extends Goal {
                         goal.onHurt(event.getSource().getEntity().position());
                     }
                 }
-            }
-        }
-    }
-
-    @Mod.EventBusSubscriber(modid = "ezvcsurvival", value = Dist.CLIENT)
-    public static class PointBlankSoundEventHandler {
-        @SubscribeEvent
-        public static void onPlaySound(PlaySoundEvent event) {
-            ResourceLocation soundRes = event.getSound().getLocation();
-            if (soundRes.getNamespace().equals("pointblank") && !soundRes.getPath().contains("_s")
-                    && !soundRes.getPath().contains("_magin")
-                    && !soundRes.getPath().contains("_magout")
-                    && !soundRes.getPath().contains("_reload")
-                    && !soundRes.getPath().contains("_draw")
-                    && !soundRes.getPath().contains("draw")
-                    && !soundRes.getPath().contains("_open")
-                    && !soundRes.getPath().contains("_close")
-                    && !soundRes.getPath().contains("_hit")
-                    && !soundRes.getPath().contains("_slide")
-                    && !soundRes.getPath().contains("added")
-                    && !soundRes.getPath().contains("removed")
-                    && !soundRes.getPath().contains("_unload")
-                    && !soundRes.getPath().contains("_load")) {
-                lastPointBlankSoundPos = new Vec3(
-                        event.getSound().getX(),
-                        event.getSound().getY(),
-                        event.getSound().getZ()
-                );
-                lastPointBlankSoundTimestamp = System.currentTimeMillis();
-                EZVCNetwork.INSTANCE.sendToServer(
-                        new PointBlankSoundPacket(
-                                soundRes,
-                                event.getSound().getX(),
-                                event.getSound().getY(),
-                                event.getSound().getZ()
-                        )
-                );
             }
         }
     }
