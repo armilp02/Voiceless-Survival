@@ -16,7 +16,9 @@ public class SoundConfig {
 
     public static final ForgeConfigSpec.ConfigValue<List<? extends String>> SOUND_GROUPS;
     public static final ForgeConfigSpec.ConfigValue<List<? extends String>> MOB_SOUND_REACTIONS;
-    public static final ForgeConfigSpec.ConfigValue<List<? extends String>> GUN_TYPE_MODIFIERS;
+    public static final ForgeConfigSpec.ConfigValue<List<? extends String>> TACZ_GUN_TYPE_MODIFIERS;
+
+    public static final ForgeConfigSpec.DoubleValue THUNDER_RANGE_MULTIPLIER;
 
     private static final Map<String, SoundGroupData> soundGroupDataMap = new HashMap<>();
     private static final Map<String, Map<String, Object>> mobReactionsMap = new HashMap<>();
@@ -54,19 +56,26 @@ public class SoundConfig {
         );
         builder.pop();
 
-        builder.comment("Gun type modifiers configuration (TACZ only)",
+        builder.push("weather");
+        builder.comment("Range multiplier applied when it is raining or thundering.",
+                "Value between 0 and 1. A lower value will reduce the effective sound range.");
+        THUNDER_RANGE_MULTIPLIER = builder.defineInRange("thunder_range_multiplier", 0.8, 0.0, 1.0);
+        builder.pop();
+
+
+        builder.comment("Gun type modifiers configuration (TACZ)",
                 "Define multipliers for mob reaction speed and range by gun type.",
                 "Format: gunType=speedMultiplier,rangeMultiplier");
-        builder.push("gun_type_modifiers");
-        GUN_TYPE_MODIFIERS = builder.defineList("modifiers",
+        builder.push("tacz_gun_type_modifiers");
+        TACZ_GUN_TYPE_MODIFIERS = builder.defineList("modifiers",
                 () -> List.of(
-                        "pistol=1.2,3.8",
-                        "sniper=1.5,8.0",
-                        "rifle=1.3,6.5",
-                        "shotgun=1.4,4.8",
-                        "smg=1.2,3.0",
-                        "rpg=1.8,10.0",
-                        "mg=1.5,4.0"
+                        "pistol=1.0,3.8",
+                        "sniper=1.0,8.0",
+                        "rifle=1.0,6.5",
+                        "shotgun=1.0,4.8",
+                        "smg=1.0,3.0",
+                        "rpg=1.0,10.0",
+                        "mg=1.0,4.0"
                 ),
                 obj -> obj instanceof String && ((String) obj).contains("=")
         );
@@ -76,9 +85,17 @@ public class SoundConfig {
     }
 
     @SubscribeEvent
-    public static void onModConfigReload(ModConfigEvent.Reloading event) {
+    public static void onModConfigLoading(ModConfigEvent.Loading event) {
         if (event.getConfig().getSpec() == SPEC) {
-            EZVCSurvival.LOGGER.info("Recargando la configuración de EZVCSurvival...");
+            EZVCSurvival.LOGGER.info("Loading the EZVCSurvival configuration (initial load)...");
+            loadConfigs();
+        }
+    }
+
+    @SubscribeEvent
+    public static void onModConfigReloading(ModConfigEvent.Reloading event) {
+        if (event.getConfig().getSpec() == SPEC) {
+            EZVCSurvival.LOGGER.info("Reloading the EZVCSurvival configuration...");
             loadConfigs();
         }
     }
@@ -101,7 +118,7 @@ public class SoundConfig {
         for (String entry : groups) {
             String[] parts = entry.split("=", 2);
             if (parts.length < 2) {
-                EZVCSurvival.LOGGER.warn("Entrada de grupo de sonido inválida: " + entry);
+                EZVCSurvival.LOGGER.warn("Invalid sound group entry: " + entry);
                 continue;
             }
             String groupName = parts[0].trim();
@@ -119,7 +136,7 @@ public class SoundConfig {
                         tokens = tokens.subList(2, tokens.size());
                     }
                 } catch (NumberFormatException e) {
-                    EZVCSurvival.LOGGER.warn("Error al parsear multiplicadores en la entrada: " + entry);
+                    EZVCSurvival.LOGGER.warn("Error parsing multipliers in the entry: " + entry);
                 }
             } else if (tokens.size() >= 3) {
                 try {
@@ -127,11 +144,11 @@ public class SoundConfig {
                     rangeMult = Double.parseDouble(tokens.get(tokens.size() - 1));
                     tokens = tokens.subList(0, tokens.size() - 2);
                 } catch (NumberFormatException e) {
-                    EZVCSurvival.LOGGER.warn("Error al parsear multiplicadores en la entrada: " + entry);
+                    EZVCSurvival.LOGGER.warn("Error parsing multipliers in the entry: " + entry);
                 }
             }
             if (tokens.isEmpty()) {
-                EZVCSurvival.LOGGER.warn("No se definieron sonidos para el grupo: " + groupName);
+                EZVCSurvival.LOGGER.warn("No sounds defined for group: " + groupName);
                 continue;
             }
             SoundGroupData data = new SoundGroupData(groupName, tokens, speedMult, rangeMult);
@@ -151,7 +168,7 @@ public class SoundConfig {
         for (String entry : reactions) {
             String[] parts = entry.split("=", 2);
             if (parts.length < 2) {
-                EZVCSurvival.LOGGER.warn("Entrada de reacción para mob inválida: " + entry);
+                EZVCSurvival.LOGGER.warn("Invalid mob reaction entry: " + entry);
                 continue;
             }
             String mobId = parts[0].trim();
@@ -181,7 +198,7 @@ public class SoundConfig {
                 }
             }
             if (map.isEmpty()) {
-                EZVCSurvival.LOGGER.warn("No se definió una reacción válida para el mob: " + mobId);
+                EZVCSurvival.LOGGER.warn("No valid reaction defined for mob: " + mobId);
             } else {
                 mobReactionsMap.put(mobId, map);
             }
@@ -190,28 +207,28 @@ public class SoundConfig {
 
     private static void loadGunTypeModifiers() {
         gunModifiersMap.clear();
-        List<? extends String> modifiers = GUN_TYPE_MODIFIERS.get();
+        List<? extends String> modifiers = TACZ_GUN_TYPE_MODIFIERS.get();
         if (modifiers == null || modifiers.isEmpty()) {
             modifiers = List.of(
-                    "pistol=1.2,3.8",
-                    "sniper=1.5,8.0",
-                    "rifle=1.3,6.5",
-                    "shotgun=1.4,4.8",
-                    "smg=1.2,3.0",
-                    "rpg=1.8,10.0",
-                    "mg=1.5,4.0"
+                    "pistol=1.0,3.8",
+                    "sniper=1.0,5.0",
+                    "rifle=1.0,6.5",
+                    "shotgun=1.0,4.8",
+                    "smg=1.0,3.0",
+                    "rpg=1.0,10.0",
+                    "mg=1.0,8.0"
             );
         }
         for (String entry : modifiers) {
             String[] parts = entry.split("=", 2);
             if (parts.length < 2) {
-                EZVCSurvival.LOGGER.warn("Entrada de modificador de arma inválida: " + entry);
+                EZVCSurvival.LOGGER.warn("Invalid gun modifier entry: " + entry);
                 continue;
             }
             String[] types = parts[0].split(",");
             String[] values = parts[1].split(",");
             if (values.length != 2) {
-                EZVCSurvival.LOGGER.warn("El modificador de arma debe tener dos valores: " + entry);
+                EZVCSurvival.LOGGER.warn("The gun modifier must have two values: " + entry);
                 continue;
             }
             try {
@@ -221,10 +238,11 @@ public class SoundConfig {
                     String t = type.trim().toLowerCase();
                     if (!t.isEmpty()) {
                         gunModifiersMap.put(t, new GunTypeModifiers(speed, range));
+                        EZVCSurvival.LOGGER.info("Loaded modifier for gun: " + t + " -> speed: " + speed + ", range: " + range);
                     }
                 }
             } catch (NumberFormatException e) {
-                EZVCSurvival.LOGGER.warn("Error al parsear modificador de arma: " + entry);
+                EZVCSurvival.LOGGER.warn("Error parsing gun modifier: " + entry, e);
             }
         }
     }
@@ -248,7 +266,7 @@ public class SoundConfig {
                 if (data != null) {
                     list.add(data);
                 } else {
-                    EZVCSurvival.LOGGER.warn("No se encontró el grupo: " + group + " para el mob: " + mobId);
+                    EZVCSurvival.LOGGER.warn("Group not found: " + group + " para el mob: " + mobId);
                 }
             }
         }

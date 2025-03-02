@@ -7,8 +7,8 @@ import com.armilp.ezvcsurvival.events.SoundEventTracker;
 import com.armilp.ezvcsurvival.config.SoundConfig;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.monster.Monster;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -17,7 +17,7 @@ import net.minecraftforge.fml.common.Mod;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public class ReactToSoundGoal extends net.minecraft.world.entity.ai.goal.Goal {
+public class ReactToSoundGoal extends Goal {
     private final Mob mob;
     private final double speed;
     private final int range;
@@ -39,20 +39,24 @@ public class ReactToSoundGoal extends net.minecraft.world.entity.ai.goal.Goal {
         Vec3 mobCenterPos = mob.position();
         double effectiveRange = range;
         double effectiveSpeed = speed;
+        String effectiveGunType = null;
 
         GunshotData gunshotData = GunFireListener.getLastGunshotData();
         if (gunshotData != null) {
-            double rangeMultiplier = SoundConfig.getRangeMultiplier(gunshotData.gunType.name().toLowerCase());
-            effectiveRange = (int)(range * rangeMultiplier);
-            double speedMultiplier = SoundConfig.getSpeedMultiplier(gunshotData.gunType.name().toLowerCase());
-            effectiveSpeed = speed * speedMultiplier;
+            effectiveGunType = gunshotData.gunType.name().toLowerCase();
         }
 
-        boolean gunshotTriggered = false;
-        if (gunshotData != null) {
-            double gunDistance = mobCenterPos.distanceTo(gunshotData.position);
-            gunshotTriggered = gunDistance <= effectiveRange;
+        if (effectiveGunType != null) {
+            double rangeMultiplier = SoundConfig.getRangeMultiplier(effectiveGunType);
+            double speedMultiplier = SoundConfig.getSpeedMultiplier(effectiveGunType);
+            effectiveRange = (int) (range * rangeMultiplier);
+            effectiveSpeed = speed * speedMultiplier;
         }
+        if (mob.level.isRaining() || mob.level.isThundering()) {
+            effectiveRange *= SoundConfig.THUNDER_RANGE_MULTIPLIER.get();
+        }
+
+        boolean gunshotTriggered = gunshotData != null && mobCenterPos.distanceTo(gunshotData.position) <= effectiveRange;
 
         Vec3 soundEventPos = null;
         double groupSpeedMult = 1.0;
@@ -74,6 +78,9 @@ public class ReactToSoundGoal extends net.minecraft.world.entity.ai.goal.Goal {
         boolean soundTriggered = false;
         if (soundEventPos != null) {
             double groupEffectiveRange = range * groupRangeMult;
+            if (mob.level.isRaining() || mob.level.isThundering()) {
+                groupEffectiveRange *= SoundConfig.THUNDER_RANGE_MULTIPLIER.get();
+            }
             soundTriggered = mobCenterPos.distanceTo(soundEventPos) <= groupEffectiveRange;
         }
 
@@ -106,13 +113,22 @@ public class ReactToSoundGoal extends net.minecraft.world.entity.ai.goal.Goal {
         Vec3 target = null;
         double effectiveRange = range;
         double effectiveSpeed = speed;
+        String effectiveGunType = null;
 
         GunshotData gunshotData = GunFireListener.getLastGunshotData();
         if (gunshotData != null) {
-            double rangeMultiplier = SoundConfig.getRangeMultiplier(gunshotData.gunType.name().toLowerCase());
-            effectiveRange = (int)(range * rangeMultiplier);
-            double speedMultiplier = SoundConfig.getSpeedMultiplier(gunshotData.gunType.name().toLowerCase());
+            effectiveGunType = gunshotData.gunType.name().toLowerCase();
+        }
+
+        if (effectiveGunType != null) {
+            double rangeMultiplier = SoundConfig.getRangeMultiplier(effectiveGunType);
+            double speedMultiplier = SoundConfig.getSpeedMultiplier(effectiveGunType);
+            effectiveRange = (int) (range * rangeMultiplier);
             effectiveSpeed = speed * speedMultiplier;
+        }
+
+        if (mob.level.isRaining() || mob.level.isThundering()) {
+            effectiveRange *= SoundConfig.THUNDER_RANGE_MULTIPLIER.get();
         }
 
         Vec3 soundEventPos = null;
@@ -132,40 +148,14 @@ public class ReactToSoundGoal extends net.minecraft.world.entity.ai.goal.Goal {
             }
         }
         if (soundEventPos != null) {
-            effectiveRange = (int)(range * groupRangeMult);
+            effectiveRange = (int) (range * groupRangeMult);
             effectiveSpeed = speed * groupSpeedMult;
         }
 
-        if (mob instanceof Monster) {
-            if (mob.getTarget() instanceof Player) {
-                return;
-            }
-            if (gunshotData != null && currentPos.distanceTo(gunshotData.position) <= effectiveRange) {
-                target = new Vec3(gunshotData.position.x, mob.getY(), gunshotData.position.z);
-            } else if (soundEventPos != null && currentPos.distanceTo(soundEventPos) <= effectiveRange) {
-                target = new Vec3(soundEventPos.x, mob.getY(), soundEventPos.z);
-            }
-        } else {
-            if (lastAttackerPos != null) {
-                Vec3 diff = currentPos.subtract(lastAttackerPos);
-                if (diff.lengthSqr() < 1e-4) {
-                    diff = new Vec3(1, 0, 0);
-                }
-                target = currentPos.add(diff.normalize().scale(effectiveRange));
-                lastAttackerPos = null;
-            } else if (gunshotData != null && currentPos.distanceTo(gunshotData.position) <= effectiveRange) {
-                Vec3 diff = currentPos.subtract(gunshotData.position);
-                if (diff.lengthSqr() < 1e-4) {
-                    diff = new Vec3(1, 0, 0);
-                }
-                target = currentPos.add(diff.normalize().scale(effectiveRange));
-            } else if (soundEventPos != null && currentPos.distanceTo(soundEventPos) <= effectiveRange) {
-                Vec3 diff = currentPos.subtract(soundEventPos);
-                if (diff.lengthSqr() < 1e-4) {
-                    diff = new Vec3(1, 0, 0);
-                }
-                target = currentPos.add(diff.normalize());
-            }
+        if (gunshotData != null && currentPos.distanceTo(gunshotData.position) <= effectiveRange) {
+            target = new Vec3(gunshotData.position.x, mob.getY(), gunshotData.position.z);
+        } else if (soundEventPos != null && currentPos.distanceTo(soundEventPos) <= effectiveRange) {
+            target = new Vec3(soundEventPos.x, mob.getY(), soundEventPos.z);
         }
 
         if (target != null) {

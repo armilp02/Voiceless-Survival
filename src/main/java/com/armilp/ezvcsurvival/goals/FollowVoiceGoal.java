@@ -58,7 +58,6 @@ public class FollowVoiceGoal extends Goal {
     @Override
     public void tick() {
         if (targetPlayer != null) {
-            // Si hay un jugador, dejamos de atender sonidos
             targetSoundPosition = null;
             handlePlayerInteraction();
         } else if (targetSoundPosition != null) {
@@ -74,7 +73,7 @@ public class FollowVoiceGoal extends Goal {
     }
 
     private void handlePlayerInteraction() {
-        if (targetPlayer.isCreative()) {
+        if (targetPlayer.isCreative() || targetPlayer.isSpectator()) {
             targetPlayer = null;
             mob.getNavigation().stop();
             return;
