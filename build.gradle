@@ -88,6 +88,7 @@ dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 
     implementation fg.deobf("curse.maven:timeless-and-classics-zero-1028108:6069322")
+    implementation fg.deobf("curse.maven:sound-physics-remastered-535489:3775919")
     implementation "de.maxhenkel.voicechat:voicechat-api:${voicechat_api_version}"
     runtimeOnly fg.deobf("maven.modrinth:simple-voice-chat:forge-${voicechat_version}")
 
@@ -132,7 +133,7 @@ tasks.register('publishCurseForge', TaskPublishCurseForge) {
 
     def mainFile = upload('1173633', file("build/libs/${mod_id}-${mod_version}.jar"))
     mainFile.displayName = "${mod_name}-${mod_version}"
-    mainFile.releaseType = 'beta'
+    mainFile.releaseType = 'release'
     mainFile.changelog = changelogText
 
     mainFile.addRequirement("simple-voice-chat")
@@ -145,7 +146,7 @@ modrinth {
     projectId = "voiceless-survival"
     versionName = "${mod_name} ${mod_version}"
     versionNumber = "${mod_version}"
-    versionType = "beta"
+    versionType = "release"
     uploadFile = file("build/libs/${mod_id}-${mod_version}.jar")
     gameVersions = ["${minecraft_version}"] as Iterable<? extends String>
     loaders = ["forge"]

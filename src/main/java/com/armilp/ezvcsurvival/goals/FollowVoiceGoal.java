@@ -73,7 +73,7 @@ public class FollowVoiceGoal extends Goal {
     }
 
     private void handlePlayerInteraction() {
-        if (targetPlayer.isCreative()) {
+        if (targetPlayer.isCreative() || targetPlayer.isSpectator()) {
             targetPlayer = null;
             mob.getNavigation().stop();
             return;
