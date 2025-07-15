@@ -100,6 +100,10 @@ public class PointBlankSoundEventHandler {
 
     @SubscribeEvent
     public static void onPlaySound(PlaySoundEvent event) {
+        if (event.getSound() == null || event.getSound().getLocation() == null) {
+            return;
+        }
+
         ResourceLocation soundRes = event.getSound().getLocation();
         String fullSound = soundRes.getNamespace() + ":" + soundRes.getPath();
 
@@ -110,16 +114,15 @@ public class PointBlankSoundEventHandler {
             double speedMultiplier = SoundConfig.getPointBlankSpeedMultiplier(gunType);
             double rangeMultiplier = SoundConfig.getPointBlankRangeMultiplier(gunType);
 
-            ReactToSoundGoal.lastPointBlankSoundPos = new Vec3(event.getSound().getX(), event.getSound().getY(), event.getSound().getZ());
+            Vec3 pos = new Vec3(event.getSound().getX(), event.getSound().getY(), event.getSound().getZ());
+            ReactToSoundGoal.lastPointBlankSoundPos = pos;
             ReactToSoundGoal.lastPointBlankSoundTimestamp = System.currentTimeMillis();
 
             if (Minecraft.getInstance().getConnection() != null) {
                 EZVCNetwork.INSTANCE.sendToServer(
                         new PointBlankSoundPacket(
                                 soundRes,
-                                event.getSound().getX(),
-                                event.getSound().getY(),
-                                event.getSound().getZ(),
+                                pos.x, pos.y, pos.z,
                                 speedMultiplier,
                                 rangeMultiplier
                         )
