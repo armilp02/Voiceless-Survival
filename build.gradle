@@ -1,0 +1,192 @@
+import net.darkhax.curseforgegradle.TaskPublishCurseForge;
+
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id 'net.neoforged.moddev' version '2.0.99'
+    id 'idea'
+    id "com.modrinth.minotaur" version "2.+"
+    id 'net.darkhax.curseforgegradle' version '1.1.+'
+}
+
+def changelogText = rootProject.file('changelog.md').text
+
+tasks.named('wrapper', Wrapper).configure {
+    distributionType = Wrapper.DistributionType.BIN
+}
+
+version = mod_version
+group = mod_group_id
+
+repositories {
+    mavenCentral()
+    maven {
+        url = "https://maven.neoforged.net/releases/"
+    }
+    maven {
+        name = "Modrinth"
+        url = "https://api.modrinth.com/maven/"
+        content {
+            includeGroup "maven.modrinth"
+        }
+    }
+    maven {
+        url = "https://maven.maxhenkel.de/repository/public/"
+    }
+
+    maven {
+        name = "Curse Maven"
+        url = "https://www.cursemaven.com"
+        content {
+            includeGroup "curse.maven"
+        }
+    }
+}
+
+base {
+    archivesName = mod_id
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+neoForge {
+    version = project.neo_version
+
+    parchment {
+        mappingsVersion = project.parchment_mappings_version
+        minecraftVersion = project.parchment_minecraft_version
+    }
+
+    runs {
+        client {
+            client()
+
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+
+        server {
+            server()
+            programArgument '--nogui'
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+
+        gameTestServer {
+            type = "gameTestServer"
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+
+        data {
+            clientData()
+
+            programArguments.addAll '--mod', project.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
+        }
+
+        configureEach {
+            systemProperty 'forge.logging.markers', 'REGISTRIES'
+
+            logLevel = org.slf4j.event.Level.DEBUG
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+configurations {
+    runtimeClasspath.extendsFrom localRuntime
+}
+
+dependencies {
+    implementation "de.maxhenkel.voicechat:voicechat-api:${voicechat_api_version}"
+    runtimeOnly "maven.modrinth:simple-voice-chat:neoforge-${voicechat_version}"
+    implementation "curse.maven:sound-physics-remastered-535489:6354657"
+}
+
+// This block of code expands all declared replace properties in the specified resource targets.
+// A missing property will result in an error. Properties are expanded using ${} Groovy notation.
+var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
+    var replaceProperties = [
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            neo_version            : neo_version,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+            mod_authors            : mod_authors,
+            mod_description        : mod_description
+    ]
+    inputs.properties replaceProperties
+    expand replaceProperties
+    from "src/main/templates"
+    into "build/generated/sources/modMetadata"
+}
+
+tasks.register('publishCurseForge', TaskPublishCurseForge) {
+    dependsOn jar
+    apiToken = System.getenv("CURSEFORGE_TOKEN")
+    def mainFile = upload('1173633', file("build/libs/${mod_id}-${mod_version}.jar"))
+
+    mainFile.displayName = "${mod_name}-${mod_version}"
+    mainFile.releaseType = 'release'
+    mainFile.changelog = changelogText
+
+    mainFile.addRequirement("simple-voice-chat")
+    mainFile.addOptional("sound-physics-remastered")
+}
+
+modrinth {
+    token = System.getenv("MODRINTH_TOKEN")
+    projectId = "voiceless-survival"
+    versionName = "${mod_name} ${mod_version}"
+    versionNumber = "${mod_version}"
+    versionType = "release"
+    uploadFile = file("build/libs/${mod_id}-${mod_version}.jar")
+    gameVersions = ["${minecraft_version}"] as Iterable<? extends String>
+    loaders = ["neoforge"]
+    changelog = changelogText
+
+
+    dependencies {
+        required.project 'simple-voice-chat'
+        optional.project 'sound-physics-remastered'
+    }
+}
+
+tasks.register('publicModdedSite') {
+    dependsOn 'build'
+    dependsOn 'publishCurseForge'
+    dependsOn 'modrinth'
+}
+
+sourceSets.main.resources.srcDir generateModMetadata
+neoForge.ideSyncTask generateModMetadata
+
+publishing {
+    publications {
+        register('mavenJava', MavenPublication) {
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            url "file://${project.projectDir}/repo"
+        }
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+idea {
+    module {
+        downloadSources = true
+        downloadJavadoc = true
+    }
+}
