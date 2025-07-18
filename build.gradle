@@ -85,8 +85,8 @@ repositories {
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 
-    implementation ("curse.maven:timeless-and-classics-zero-1028108:6069384")
-    implementation fg.deobf("curse.maven:sound-physics-remastered-535489:5991549")
+    implementation fg.deobf("curse.maven:timeless-and-classics-zero-1028108:6654541")
+    implementation fg.deobf("curse.maven:sound-physics-remastered-535489:6352920")
     implementation "de.maxhenkel.voicechat:voicechat-api:${voicechat_api_version}"
     runtimeOnly fg.deobf("maven.modrinth:simple-voice-chat:forge-${voicechat_version}")
 
@@ -138,6 +138,7 @@ tasks.register('publishCurseForge', TaskPublishCurseForge) {
     mainFile.addOptional("death-angels")
     mainFile.addOptional("vics-point-blank")
     mainFile.addOptional("sound-physics-remastered")
+    mainFile.addOptional("overmans-quiet-place")
 }
 
 
@@ -158,6 +159,7 @@ modrinth {
         optional.project 'timeless-and-classics-zero'
         optional.project 'vics-point-blank'
         optional.project 'sound-physics-remastered'
+        optional.project 'overmans-quiet-place'
     }
 }
 

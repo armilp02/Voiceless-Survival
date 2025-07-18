@@ -3,7 +3,7 @@ loaderVersion="${loader_version_range}"
 license="All Rights Reserved by armilp"
 [[mods]]
 modId="ezvcsurvival"
-version="1.0.0"
+version="1.4.2"
 displayName="Voiceless Survival"
 authors="armilp"
 description='''${mod_description}'''
