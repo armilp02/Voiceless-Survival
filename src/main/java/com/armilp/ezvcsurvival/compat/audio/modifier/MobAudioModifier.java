@@ -1,4 +1,4 @@
-package com.armilp.ezvcsurvival.audio.modifier;
+package com.armilp.ezvcsurvival.compat.audio.modifier;
 
 import com.sonicether.soundphysics.ReflectedAudio;
 import net.minecraft.world.phys.Vec3;
@@ -20,7 +20,6 @@ public class MobAudioModifier {
     private double computeBaseIntensity(double occlusion) {
         double randomFactor = 0.95 + Math.random() * 0.1;
         double intensity = (1.0 / (occlusion + 0.1)) * randomFactor;
-        // Se limita la intensidad base entre 1.0 y 2.5 para mantener un rango controlado
         return Math.min(Math.max(intensity, 1.0), 2.5);
     }
 

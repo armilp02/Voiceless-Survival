@@ -1,5 +1,6 @@
-package com.armilp.ezvcsurvival.audio.modifier;
+package com.armilp.ezvcsurvival.compat.audio.modifier;
 
+import com.armilp.ezvcsurvival.api.IAudioModifier;
 import net.minecraft.world.phys.Vec3;
 
 public class RealAudioModifier implements IAudioModifier {

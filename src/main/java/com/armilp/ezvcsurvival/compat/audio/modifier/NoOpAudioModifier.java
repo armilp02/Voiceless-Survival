@@ -1,4 +1,6 @@
-package com.armilp.ezvcsurvival.audio.modifier;
+package com.armilp.ezvcsurvival.compat.audio.modifier;
+
+import com.armilp.ezvcsurvival.api.IAudioModifier;
 
 public class NoOpAudioModifier implements IAudioModifier {
 
