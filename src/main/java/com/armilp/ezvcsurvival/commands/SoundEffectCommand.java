@@ -1,27 +1,21 @@
 package com.armilp.ezvcsurvival.commands;
 
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.commands.CommandSourceStack;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import net.minecraftforge.fml.ModList;
+import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.registries.ForgeRegistries;
 
 public class SoundEffectCommand {
 
     public static void applyEffect(ServerPlayer player) {
-        if (!ModList.get().isLoaded("death_angels")) {
+        ResourceLocation effectId = new ResourceLocation("death_angels", "sound_effect");
+        MobEffect effect = ForgeRegistries.MOB_EFFECTS.getValue(effectId);
+        if (effect == null) {
             return;
         }
 
-        if (player.getServer() != null) {
-            CommandSourceStack sourceStack = player.createCommandSourceStack();
-            CommandSourceStack silentSource = sourceStack.withSuppressedOutput();
-
-            String command = "effect give " + player.getGameProfile().getName() + " death_angels:sound_effect 2 1 true";
-            try {
-                player.getServer().getCommands().getDispatcher().execute(command, silentSource);
-            } catch (CommandSyntaxException e) {
-                e.printStackTrace();
-            }
-        }
+        MobEffectInstance instance = new MobEffectInstance(effect, 40, 1, false, false);
+        player.addEffect(instance);
     }
 }
