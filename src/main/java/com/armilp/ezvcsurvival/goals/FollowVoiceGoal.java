@@ -25,7 +25,7 @@ public class FollowVoiceGoal extends Goal {
         this.voiceDetectionRange = detectionRange;
         this.threshold = threshold;
         this.maxFollowTime = maxFollowTime;
-        this.setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.TARGET));
+        this.setFlags(EnumSet.of(Flag.MOVE, Flag.TARGET));
     }
 
     @Override
@@ -95,9 +95,10 @@ public class FollowVoiceGoal extends Goal {
     }
 
     private void handleSoundInteraction() {
-        double distanceToTarget = mob.blockPosition().distSqr(targetSoundPosition);
+        double distanceSq = mob.blockPosition().distSqr(targetSoundPosition);
+        double arrivalThresholdSq = this.threshold * this.threshold;
 
-        if (distanceToTarget <= 1.5 * 1.5) {
+        if (distanceSq <= arrivalThresholdSq) {
             targetSoundPosition = Plugin.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange);
             if (targetSoundPosition != null) {
                 moveToSoundPosition();
@@ -107,7 +108,7 @@ public class FollowVoiceGoal extends Goal {
             return;
         }
 
-        if (distanceToTarget > (double) (voiceDetectionRange * voiceDetectionRange) / 2) {
+        if (distanceSq > (voiceDetectionRange * voiceDetectionRange) / 2.0) {
             BlockPos newSoundPosition = Plugin.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange);
             if (newSoundPosition == null) {
                 targetSoundPosition = null;
