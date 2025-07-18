@@ -3,6 +3,7 @@ package com.armilp.ezvcsurvival.config;
 import com.armilp.ezvcsurvival.EZVCSurvival;
 import com.armilp.ezvcsurvival.data.GunTypeModifiers;
 import com.armilp.ezvcsurvival.data.SoundGroupData;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.common.ForgeConfigSpec;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.event.config.ModConfigEvent;
@@ -18,13 +19,19 @@ public class SoundConfig {
     public static final ForgeConfigSpec.ConfigValue<List<? extends String>> MOB_SOUND_REACTIONS;
     public static final ForgeConfigSpec.ConfigValue<List<? extends String>> TACZ_GUN_TYPE_MODIFIERS;
     public static final ForgeConfigSpec.ConfigValue<List<? extends String>> POINT_BLANK_GUN_TYPE_MODIFIERS;
+    public static final ForgeConfigSpec.ConfigValue<List<? extends String>> SILENCED_GUN_IDS;
+    public static final ForgeConfigSpec.ConfigValue<List<? extends String>> PRIORITY_SOUNDS;
+    public static final ForgeConfigSpec.ConfigValue<List<? extends String>> GUN_FIRE_MOBS;
 
     public static final ForgeConfigSpec.DoubleValue THUNDER_RANGE_MULTIPLIER;
+
+    private static final List<SoundGroupData> priorityGroups = new ArrayList<>();
 
     private static final Map<String, SoundGroupData> soundGroupDataMap = new HashMap<>();
     private static final Map<String, Map<String, Object>> mobReactionsMap = new HashMap<>();
     private static final Map<String, GunTypeModifiers> gunModifiersMap = new HashMap<>();
     private static final Map<String, GunTypeModifiers> pointBlankGunModifiersMap = new HashMap<>();
+    private static final Set<String> silencedGunIds = new HashSet<>();
 
     public static final ForgeConfigSpec SPEC;
 
@@ -38,8 +45,21 @@ public class SoundConfig {
         builder.push("sound_groups");
         SOUND_GROUPS = builder.defineList("groups",
                 () -> List.of(
-                        "wood_sounds=block.wood.break,block.wood.hit,block.wood.place,1.0,1.0",
-                        "animal_hurts=entity.cow.hurt,entity.pig.hurt"
+                        "wood_sounds=block.wood.break,block.wood.place,block.wood.hit,1.0,1.0",
+                        "stone_sounds=block.stone.break,block.stone.place,block.stone.hit,1.0,1.0",
+                        "metal_sounds=block.metal.break,block.metal.place,block.metal.hit,1.0,1.0",
+                        "glass_sounds=block.glass.break,block.glass.place,1.0,1.0",
+                        "gravel_sounds=block.gravel.break,block.gravel.place,1.0,1.0",
+                        "sand_sounds=block.sand.break,block.sand.place,1.0,1.0",
+
+                        "animal_hurts=entity.cow.hurt,entity.pig.hurt,entity.sheep.hurt,entity.chicken.hurt,entity.rabbit.hurt",
+                        "hostile_hurts=entity.zombie.hurt,entity.skeleton.hurt,entity.creeper.hurt,entity.spider.hurt",
+
+                        "fire_sounds=block.fire.ambient,block.fire.extinguish,item.firecharge.use",
+                        "explosive_sounds=entity.generic.explode,entity.creeper.primed,entity.tnt.primed",
+
+                        "anvil_sounds=block.anvil.break,block.anvil.use,block.anvil.place",
+                        "bell_sounds=block.bell.use,block.bell.resonate"
                 ),
                 obj -> obj instanceof String && ((String) obj).contains("=")
         );
@@ -51,12 +71,23 @@ public class SoundConfig {
         builder.push("mob_sound_reactions");
         MOB_SOUND_REACTIONS = builder.defineList("reactions",
                 () -> List.of(
-                        "minecraft:zombie=speed=1.5,range=20,groups=wood_sounds",
-                        "minecraft:cow=speed=1.8,range=16,groups=animal_hurts"
+                        "minecraft:zombie=speed=1.5,range=20,groups=wood_sounds,stone_sounds,metal_sounds,glass_sounds,gravel_sounds,sand_sounds,animal_hurts,hostile_hurts,fire_sounds,explosive_sounds,anvil_sounds,bell_sounds",
+                        "minecraft:cow=speed=1.8,range=16,groups=wood_sounds,stone_sounds,metal_sounds,glass_sounds,gravel_sounds,sand_sounds,animal_hurts,hostile_hurts,fire_sounds,explosive_sounds,anvil_sounds,bell_sounds"
                 ),
                 obj -> obj instanceof String && ((String) obj).contains("=")
         );
         builder.pop();
+
+        builder.push("priority_group");
+        builder.comment("Define priority sounds with per-sound speed and range",
+                "Format: namespace:path=speed,range");
+        PRIORITY_SOUNDS = builder.defineList("sounds",
+                () -> List.of("minecraft:entity.generic.explode=1.0,12.0"),
+                obj -> obj instanceof String && ((String) obj).contains("=")
+                        && ResourceLocation.isValidResourceLocation(((String) obj).split("=", 2)[0])
+        );
+        builder.pop();
+
 
         builder.push("weather");
         builder.comment("Range multiplier applied when it is raining or thundering.",
@@ -101,6 +132,34 @@ public class SoundConfig {
         );
         builder.pop();
 
+        builder.push("gun_fire_mobs");
+        GUN_FIRE_MOBS = builder.defineList("mobs",
+                () -> List.of(
+                        "minecraft:zombie",
+                        "minecraft:skeleton"
+                ),
+                obj -> obj instanceof String && !((String) obj).isEmpty()
+        );
+        builder.pop();
+
+        builder.comment("Silenced Guns configuration",
+                "List of GUNS IDs that should always be treated as silenced.",
+                "Format: namespace:id",
+                "This is only for the guns are silenced by default (Only Addons from TACZ!)");
+        builder.push("silenced_guns");
+        SILENCED_GUN_IDS = builder.defineList("ids",
+                () -> List.of(
+                        "daffas_arsenal:hk45_sup",
+                        "daffas_arsenal:apacoba9_sup"
+                ),
+                obj -> {
+                    if (!(obj instanceof String)) return false;
+                    String s = ((String) obj).trim();
+                    return ResourceLocation.isValidResourceLocation(s);
+                }
+        );
+        builder.pop();
+
         SPEC = builder.build();
     }
 
@@ -125,10 +184,32 @@ public class SoundConfig {
         loadMobSoundReactions();
         loadGunTypeModifiers();
         loadPointBlankGunTypeModifiers();
+        loadSilencedGuns();
     }
 
     private static void loadSoundGroups() {
         soundGroupDataMap.clear();
+        priorityGroups.clear();
+
+        // parse priority sounds
+        for (String entry : PRIORITY_SOUNDS.get()) {
+            String[] parts = entry.split("=", 2);
+            String soundId = parts[0].trim();
+            String[] vals = parts[1].split(",");
+            double speed = 1.0, range = 1.0;
+            try {
+                speed = Double.parseDouble(vals[0].trim());
+                range = Double.parseDouble(vals[1].trim());
+            } catch (NumberFormatException ignored) {}
+            SoundGroupData data = new SoundGroupData(
+                    "priority_" + soundId.replace(':', '_'),
+                    List.of(soundId),
+                    speed,
+                    range
+            );
+            priorityGroups.add(data);
+            soundGroupDataMap.put(data.groupName, data);
+        }
         List<? extends String> groups = SOUND_GROUPS.get();
         if (groups == null || groups.isEmpty()) {
             groups = List.of(
@@ -291,7 +372,7 @@ public class SoundConfig {
             String[] types = parts[0].split(",");
             String[] values = parts[1].split(",");
             if (values.length != 2) {
-                EZVCSurvival.LOGGER.warn("The pointblank gun modifier must have two values: "  + entry);
+                EZVCSurvival.LOGGER.warn("The pointblank gun modifier must have two values: " + entry);
                 continue;
             }
             try {
@@ -310,6 +391,16 @@ public class SoundConfig {
         }
     }
 
+    private static void loadSilencedGuns() {
+        silencedGunIds.clear();
+        List<? extends String> list = SILENCED_GUN_IDS.get();
+        if (list != null) {
+            for (String id : list) {
+                silencedGunIds.add(id.trim().toLowerCase());
+            }
+        }
+    }
+
     private static Object tryParse(String s) {
         try {
             return Double.parseDouble(s);
@@ -320,17 +411,16 @@ public class SoundConfig {
 
     public static List<SoundGroupData> getSoundGroupsForMob(String mobId) {
         List<SoundGroupData> list = new ArrayList<>();
+
+        list.addAll(priorityGroups);
+
         Map<String, Object> reaction = mobReactionsMap.get(mobId);
         if (reaction != null && reaction.containsKey("groups")) {
             @SuppressWarnings("unchecked")
             List<String> groups = (List<String>) reaction.get("groups");
             for (String group : groups) {
                 SoundGroupData data = soundGroupDataMap.get(group);
-                if (data != null) {
-                    list.add(data);
-                } else {
-                    EZVCSurvival.LOGGER.warn("Group not found: " + group + " para el mob: " + mobId);
-                }
+                if (data != null) list.add(data);
             }
         }
         return list;
@@ -358,5 +448,55 @@ public class SoundConfig {
 
     public static Map<String, Object> getMobSoundReaction(String mobId) {
         return mobReactionsMap.get(mobId);
+    }
+    public static boolean isSilencedGun(ResourceLocation id) {
+        return id != null && silencedGunIds.contains(id.toString().toLowerCase());
+    }
+    public static List<SoundGroupData> getPriorityGroups() {
+        return Collections.unmodifiableList(priorityGroups);
+    }
+
+    public static List<SoundGroupData> getSoundGroupsForGunFireMob(String mobId) {
+        List<SoundGroupData> list = new ArrayList<>();
+
+        for (String entry : GUN_FIRE_MOBS.get()) {
+            String[] parts = entry.split("=", 2);
+            String entryMobId = parts[0].trim();
+
+            if (entryMobId.equals(mobId)) {
+                double speed = 1.0; // valor por defecto
+                int range = 10;     // valor por defecto
+
+                if (parts.length == 2) {
+                    String params = parts[1].trim();
+                    String[] paramPairs = params.split(",");
+                    for (String param : paramPairs) {
+                        String[] kv = param.split("=");
+                        if (kv.length == 2) {
+                            String key = kv[0].trim();
+                            String value = kv[1].trim();
+                            try {
+                                if ("speed".equalsIgnoreCase(key)) {
+                                    speed = Double.parseDouble(value);
+                                } else if ("range".equalsIgnoreCase(key)) {
+                                    range = Integer.parseInt(value);
+                                }
+                            } catch (NumberFormatException e) {
+                                EZVCSurvival.LOGGER.warn("Error parsing gunfire parameters for " + mobId + ": " + param);
+                            }
+                        }
+                    }
+                }
+
+                SoundGroupData gunfireGroup = new SoundGroupData(
+                        "gunfire_sounds",
+                        List.of("minecraft:entity.generic.explode"),
+                        speed, range
+                );
+                list.add(gunfireGroup);
+            }
+        }
+
+        return list;
     }
 }

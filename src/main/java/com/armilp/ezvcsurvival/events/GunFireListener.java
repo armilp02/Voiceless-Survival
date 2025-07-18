@@ -1,6 +1,7 @@
 package com.armilp.ezvcsurvival.events;
 
 import com.armilp.ezvcsurvival.commands.SoundEffectCommand;
+import com.armilp.ezvcsurvival.config.SoundConfig;
 import com.armilp.ezvcsurvival.data.GunshotData;
 import com.tacz.guns.api.event.common.GunFireEvent;
 import com.tacz.guns.api.item.GunTabType;
@@ -33,7 +34,7 @@ public class GunFireListener {
         IGun gun = IGun.getIGunOrNull(gunStack);
 
         LivingEntity shooter = event.getShooter();
-        if (shooter != null && useSilenceSound(shooter)) {
+        if (shooter != null && useSilenceSound(shooter, gunStack)) {
             return;
         }
         if (shooter == null) return;
@@ -76,11 +77,23 @@ public class GunFireListener {
         gunshotPositions.add(new GunshotData(shooterPos, System.currentTimeMillis(), gunType));
     }
 
-    private static boolean useSilenceSound(LivingEntity player) {
-        AttachmentCacheProperty cacheProperty = IGunOperator.fromLivingEntity(player).getCacheProperty();
-        if (cacheProperty != null) {
-            Pair<Integer, Boolean> silence = cacheProperty.getCache(SilenceModifier.ID);
-            return silence.right();
+    private static boolean useSilenceSound(LivingEntity entity, ItemStack gunStack) {
+
+        IGunOperator operator = IGunOperator.fromLivingEntity(entity);
+        if (operator != null) {
+            AttachmentCacheProperty cacheProperty = operator.getCacheProperty();
+            if (cacheProperty != null) {
+                Pair<Integer, Boolean> silence = cacheProperty.getCache(SilenceModifier.ID);
+                if (silence != null && silence.right()) return true;
+            }
+        }
+        // 2. Fallback manual por ID, ahora desde config
+        IGun gun = IGun.getIGunOrNull(gunStack);
+        if (gun != null) {
+            ResourceLocation gunId = gun.getGunId(gunStack);
+            if (SoundConfig.isSilencedGun(gunId)) {
+                return true;
+            }
         }
         return false;
     }
