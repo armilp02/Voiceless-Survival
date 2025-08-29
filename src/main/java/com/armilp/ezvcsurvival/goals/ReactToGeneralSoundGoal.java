@@ -188,7 +188,7 @@ public class ReactToGeneralSoundGoal extends Goal {
                         if (currentPos.distanceTo(pos) <= grpRange) {
                             if (mob instanceof Monster) {
                                 if (currentPos.distanceTo(pos) > 50.0) {
-                                    mob.getNavigation().moveTo(pos.x, pos.y, pos.z, grpSpeed * 0.8); // Velocidad reducida para mejor pathfinding
+                                    mob.getNavigation().moveTo(pos.x, pos.y, pos.z, grpSpeed * 0.8);
                                 } else {
                                     mob.getNavigation().moveTo(pos.x, pos.y, pos.z, grpSpeed);
                                 }
@@ -208,7 +208,7 @@ public class ReactToGeneralSoundGoal extends Goal {
                 Vec3 fleeTarget = currentPos.add(directionAway.scale(range));
 
                 if (currentPos.distanceTo(lastAttackerPos) > 50.0) {
-                    mob.getNavigation().moveTo(fleeTarget.x, fleeTarget.y, fleeTarget.z, speed * 0.8); // Velocidad reducida para mejor pathfinding
+                    mob.getNavigation().moveTo(fleeTarget.x, fleeTarget.y, fleeTarget.z, speed * 0.8);
                 } else {
                     mob.getNavigation().moveTo(fleeTarget.x, fleeTarget.y, fleeTarget.z, speed);
                 }
@@ -222,7 +222,7 @@ public class ReactToGeneralSoundGoal extends Goal {
         }
         return new ResourceLocation("minecraft", soundStr);
     }
-    
+
     private Vec3 getCurrentTargetPosition() {
         if (ReactToGunfireGoal.lastPrioritySoundPos != null) {
             return ReactToGunfireGoal.lastPrioritySoundPos;
@@ -243,7 +243,7 @@ public class ReactToGeneralSoundGoal extends Goal {
                 }
             }
         }
-        
+
         return null;
     }
 }

@@ -76,12 +76,12 @@ public final class GeneralSoundsConfig {
         if (changed) save(path);
     }
 
-
     private static boolean ensureAllPresent() {
         boolean changed = false;
         if (ROOT.mobs == null) { ROOT.mobs = new HashMap<>(); changed = true; }
         if (ROOT.sounds == null) { ROOT.sounds = new HashMap<>(); changed = true; }
 
+        // ENTITIES
         for (EntityType<?> type : BuiltInRegistries.ENTITY_TYPE) {
             MobCategory cat = type.getCategory();
             if (cat == MobCategory.MISC) continue;
@@ -92,17 +92,109 @@ public final class GeneralSoundsConfig {
             }
         }
 
+        // SOUNDS
         for (var sound : BuiltInRegistries.SOUND_EVENT) {
             String id = Objects.requireNonNull(BuiltInRegistries.SOUND_EVENT.getKey(sound)).toString();
-            if (!ROOT.sounds.containsKey(id)) {
-                ROOT.sounds.put(id, new SoundEntry(true, 1.0, 1.0));
-                changed = true;
+
+            if (id.startsWith("pointblank:")) {
+                if (!ROOT.sounds.containsKey(id)) {
+                    SoundEntry entry = new SoundEntry(false, 1.0, 1.0);
+
+                    // Pistols
+                    if (id.equals("pointblank:glock17")
+                            || id.equals("pointblank:m9")
+                            || id.equals("pointblank:m1911a1")
+                            || id.equals("pointblank:p30l")
+                            || id.equals("pointblank:deserteagle")
+                            || id.equals("pointblank:rhino")) {
+                        entry = new SoundEntry(true, 1.0, 4.0);
+                    }
+
+                    // Rifles
+                    if (id.equals("pointblank:ak12")
+                            || id.equals("pointblank:m4a1")
+                            || id.equals("pointblank:m4sopmodii")
+                            || id.equals("pointblank:m16a1")
+                            || id.equals("pointblank:hk416")
+                            || id.equals("pointblank:scarl_unsilenced")
+                            || id.equals("pointblank:xm7_unsilenced")
+                            || id.equals("pointblank:g36c")
+                            || id.equals("pointblank:aug")
+                            || id.equals("pointblank:g41")
+                            || id.equals("pointblank:ak47")
+                            || id.equals("pointblank:ak74")
+                            || id.equals("pointblank:an94")
+                            || id.equals("pointblank:ar57")
+                            || id.equals("pointblank:xm29")) {
+                        entry = new SoundEntry(true, 1.0, 6.5);
+                    }
+
+                    // SMG
+                    if (id.equals("pointblank:mp5")
+                            || id.equals("pointblank:mp7")
+                            || id.equals("pointblank:ro635")
+                            || id.equals("pointblank:ump45_unsilenced")
+                            || id.equals("pointblank:vector")
+                            || id.equals("pointblank:p90")
+                            || id.equals("pointblank:m950")
+                            || id.equals("pointblank:tmp")
+                            || id.equals("pointblank:sl8")) {
+                        entry = new SoundEntry(true, 1.0, 3.0);
+                    }
+
+                    // Snipers
+                    if (id.equals("pointblank:mk14ebr")
+                            || id.equals("pointblank:uar10")
+                            || id.equals("pointblank:g3")
+                            || id.equals("pointblank:wa2000")
+                            || id.equals("pointblank:xm3")
+                            || id.equals("pointblank:l96a1")
+                            || id.equals("pointblank:ballista")
+                            || id.equals("pointblank:gm6lynx")) {
+                        entry = new SoundEntry(true, 1.0, 5.0);
+                    }
+
+                    // Shotguns
+                    if (id.equals("pointblank:m590")
+                            || id.equals("pointblank:m870")
+                            || id.equals("pointblank:spas12")
+                            || id.equals("pointblank:aa12")
+                            || id.equals("pointblank:citoricxs")
+                            || id.equals("pointblank:hs12")) {
+                        entry = new SoundEntry(true, 1.0, 4.8);
+                    }
+
+                    // RPG
+                    if (id.equals("pointblank:mgl_shoot")
+                            || id.equals("pointblank:launcher")
+                            || id.equals("pointblank:at4")) {
+                        entry = new SoundEntry(true, 1.0, 10.0);
+                    }
+
+                    // MG
+                    if (id.equals("pointblank:lamg")
+                            || id.equals("pointblank:mk48")
+                            || id.equals("pointblank:m249")
+                            || id.equals("pointblank:m134minigun")) {
+                        entry = new SoundEntry(true, 1.0, 8.0);
+                    }
+
+                    ROOT.sounds.put(id, entry);
+                    changed = true;
+                }
+            } else {
+                if (!ROOT.sounds.containsKey(id)) {
+                    ROOT.sounds.put(id, new SoundEntry(true, 1.0, 1.0));
+                    changed = true;
+                }
             }
+
 
             if (id.contains("step") || id.contains("ambient") || id.contains("cave")
                     || id.contains("idle") || id.contains("music") || id.contains("weather")
                     || id.contains("ui") || id.contains("furnace") || id.contains("equip")
-                    || id.contains("pointblank") || id.contains("tacz") || id.contains("pickup")) {
+                    || id.contains("tacz") || id.contains("pickup") || id.contains("drop")
+                    || id.contains("hit"))  {
                 SoundEntry soundEntry = ROOT.sounds.get(id);
                 if (soundEntry != null && soundEntry.enabled) {
                     soundEntry.enabled = false;
@@ -112,7 +204,6 @@ public final class GeneralSoundsConfig {
         }
         return changed;
     }
-
 
     private static Root defaultRoot() {
         Root r = new Root();
@@ -133,6 +224,7 @@ public final class GeneralSoundsConfig {
         }
     }
 
+    // ==== CLASES DE DATOS ====
     public static final class Root {
         public boolean enabled = true;
         public Map<String, Reaction> mobs;
