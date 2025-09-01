@@ -35,7 +35,7 @@ public class FollowVoiceGoal extends Goal {
         }
 
         targetPlayer = getNearestPlayerInRange();
-        targetSoundPosition = Plugin.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange);
+        targetSoundPosition = Plugin.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange, threshold);
         return targetPlayer != null || targetSoundPosition != null;
     }
 
@@ -99,7 +99,7 @@ public class FollowVoiceGoal extends Goal {
         double arrivalThresholdSq = this.threshold * this.threshold;
 
         if (distanceSq <= arrivalThresholdSq) {
-            targetSoundPosition = Plugin.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange);
+            targetSoundPosition = Plugin.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange, threshold);
             if (targetSoundPosition != null) {
                 moveToSoundPosition();
             } else {
@@ -109,7 +109,7 @@ public class FollowVoiceGoal extends Goal {
         }
 
         if (distanceSq > (voiceDetectionRange * voiceDetectionRange) / 2.0) {
-            BlockPos newSoundPosition = Plugin.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange);
+            BlockPos newSoundPosition = Plugin.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange, threshold);
             if (newSoundPosition == null) {
                 targetSoundPosition = null;
                 mob.getNavigation().stop();
@@ -119,9 +119,7 @@ public class FollowVoiceGoal extends Goal {
                 moveToSoundPosition();
             }
         }
-
-        double soundSpeed = Plugin.getLastSoundSpeed(mob.blockPosition(), voiceDetectionRange);
-        mob.getNavigation().setSpeedModifier(soundSpeed);
+        mob.getNavigation().setSpeedModifier(speedModifier);
     }
 
     private Player getNearestPlayerInRange() {

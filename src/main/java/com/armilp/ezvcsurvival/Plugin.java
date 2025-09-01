@@ -1,10 +1,9 @@
 package com.armilp.ezvcsurvival;
 
-import com.armilp.ezvcsurvival.audio.AudioModifierFactory;
-import com.armilp.ezvcsurvival.audio.modifier.IAudioModifier;
 import com.armilp.ezvcsurvival.commands.SoundEffectCommand;
 import com.armilp.ezvcsurvival.data.SoundData;
 import com.armilp.ezvcsurvival.events.ArmorEventHandler;
+import com.armilp.ezvcsurvival.config.EntityVoiceConfig;
 import de.maxhenkel.voicechat.api.*;
 import de.maxhenkel.voicechat.api.events.EventRegistration;
 import de.maxhenkel.voicechat.api.events.MicrophonePacketEvent;
@@ -26,12 +25,11 @@ import java.util.concurrent.TimeUnit;
 @Mod.EventBusSubscriber(modid = "ezvcsurvival")
 public class Plugin implements VoicechatPlugin {
 
-    private static final boolean DEBUG = true;
+    private boolean DEBUG;
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private static final Map<UUID, SoundData> playerSoundLocations = new ConcurrentHashMap<>();
     private static final Map<UUID, Long> lastVoiceEffectTime = new ConcurrentHashMap<>();
     private static final long DEATH_ANGELS_EFFECT_COOLDOWN_MS = 3000;
-
     private static VoicechatApi voicechatApi;
 
     @Override
@@ -45,6 +43,7 @@ public class Plugin implements VoicechatPlugin {
     @Override
     public void initialize(VoicechatApi api) {
         voicechatApi = api;
+        this.DEBUG = VoiceConfig.DEBUG.get();
         if (DEBUG) {
             System.out.println("[DEBUG] VoiceChat Plugin initialized");
         }
@@ -54,87 +53,81 @@ public class Plugin implements VoicechatPlugin {
     public void registerEvents(EventRegistration registration) {
         registration.registerEvent(MicrophonePacketEvent.class, this::onMicrophonePacket);
         if (DEBUG) {
-            System.out.println("[DEBUG] Registro del evento MicrophonePacketEvent");
+            System.out.println("[DEBUG] Registered MicrophonePacketEvent");
         }
     }
 
-    public static double calculateAudioLevel(short[] samples) {
-        double rms = 0D;
-        for (short sample : samples) {
-            double normalizedSample = (double) sample / (double) Short.MAX_VALUE;
-            rms += normalizedSample * normalizedSample;
+    public static double getMaxAudioLevel(short[] samples) {
+        double rms = 0D; // root mean square (RMS) amplitude
+
+        for (int i = 0; i < samples.length; i++) {
+            double sample = (double) samples[i] / (double) Short.MAX_VALUE;
+            rms += sample * sample;
         }
-        int sampleCount = samples.length;
+
+        int sampleCount = samples.length / 2;
         rms = (sampleCount == 0) ? 0 : Math.sqrt(rms / sampleCount);
+
+        double db;
         if (rms > 0D) {
-            return Math.min(Math.max(20D * Math.log10(rms), -127D), 0D);
+            db = Math.min(Math.max(20D * Math.log10(rms), -127D), 0D);
         } else {
-            return -127D;
+            db = -127D;
         }
+
+        return db;
     }
 
-    public static BlockPos getLastSoundLocation(BlockPos zombiePosition, double range) {
+    @Nullable
+    public static BlockPos getLastSoundLocation(BlockPos mobPosition, double range, double minDb) {
         return playerSoundLocations.values().stream()
-                .filter(data -> zombiePosition.distSqr(data.getPosition()) <= data.getRange() * data.getRange())
-                .min(Comparator.comparingDouble(data -> zombiePosition.distSqr(data.getPosition())))
+                .filter(data -> data.getAudioLevelDb() >= minDb) // cada mob compara con su threshold
+                .filter(data -> mobPosition.distSqr(data.getPosition()) <= range * range)
+                .min(Comparator.comparingDouble(data -> mobPosition.distSqr(data.getPosition())))
                 .map(SoundData::getPosition)
                 .orElse(null);
     }
 
-    public static double getLastSoundSpeed(BlockPos zombiePosition, double range) {
-        return playerSoundLocations.values().stream()
-                .filter(data -> zombiePosition.distSqr(data.getPosition()) <= data.getRange() * data.getRange())
-                .min(Comparator.comparingDouble(data -> zombiePosition.distSqr(data.getPosition())))
-                .map(SoundData::getSpeed)
-                .orElse(1.0);
-    }
-
     public void onMicrophonePacket(MicrophonePacketEvent event) {
         VoicechatConnection sender = event.getSenderConnection();
-        if (sender == null || sender.getPlayer() == null) {
+        if (sender == null || sender.getPlayer() == null) return;
+
+        if (sender.getPlayer().getPlayer() instanceof ServerPlayer player
+                && (player.isCreative() || player.isSpectator())) return;
+
+        OpusDecoder localDecoder = decoder;
+        if (localDecoder == null || localDecoder.isClosed()) {
+            localDecoder = voicechatApi.createDecoder();
+            decoder = localDecoder;
+        }
+        if (localDecoder == null) {
             return;
         }
-        if (sender.getPlayer().getPlayer() instanceof ServerPlayer player && player.isCreative() && player.isSpectator()) {
-            return;
-        }
-        if (decoder == null || decoder.isClosed()) {
-            decoder = voicechatApi.createDecoder();
-        }
-        decoder.resetState();
+        localDecoder.resetState();
+
         byte[] opusEncodedData = event.getPacket().getOpusEncodedData();
         short[] decoded;
         try {
-            decoded = decoder.decode(opusEncodedData);
+            decoded = localDecoder.decode(opusEncodedData);
         } catch (Exception e) {
             return;
         }
-        double audioLevel = calculateAudioLevel(decoded);
+
+        double audioLevel = getMaxAudioLevel(decoded);
+
         UUID playerUUID = sender.getPlayer().getUuid();
-        de.maxhenkel.voicechat.api.Position voicechatPosition = sender.getPlayer().getPosition();
-        BlockPos playerPosition = new BlockPos(
-                (int) Math.floor(voicechatPosition.getX()),
-                (int) Math.floor(voicechatPosition.getY()),
-                (int) Math.floor(voicechatPosition.getZ())
+        Position voicechatPosition = sender.getPlayer().getPosition();
+
+        Vec3 senderVec = new Vec3(
+                voicechatPosition.getX(),
+                voicechatPosition.getY(),
+                voicechatPosition.getZ()
         );
-        BlockPos senderPosition = playerPosition;
-        double distance = Math.sqrt(playerPosition.distSqr(senderPosition));
-        double perceivedIntensity = audioLevel - 20 * Math.log10(distance + 1);
-        if (DEBUG) {
-            System.out.println("[DEBUG] Perceived Intensity: " + perceivedIntensity + " dB");
-        }
-        long currentTime = System.currentTimeMillis();
-        if (perceivedIntensity >= VoiceConfig.DEATH_ANGELS_THRESHOLD.get()) {
-            if (!lastVoiceEffectTime.containsKey(playerUUID) ||
-                    currentTime - lastVoiceEffectTime.get(playerUUID) > DEATH_ANGELS_EFFECT_COOLDOWN_MS) {
-                if (sender.getPlayer().getPlayer() instanceof ServerPlayer serverPlayer) {
-                    SoundEffectCommand.applyEffect(serverPlayer);
-                    lastVoiceEffectTime.put(playerUUID, currentTime);
-                    if (DEBUG) {
-                        System.out.println("[DEBUG] Efecto aplicado al jugador " + playerUUID);
-                    }
-                }
-            }
-        }
+        BlockPos playerPosition = new BlockPos(
+                (int) Math.floor(senderVec.x),
+                (int) Math.floor(senderVec.y),
+                (int) Math.floor(senderVec.z)
+        );
 
         boolean isWhispering = event.getPacket().isWhispering();
         double whisperRangeMultiplier = VoiceConfig.WHISPER_RANGE_MULTIPLIER.get();
@@ -142,169 +135,81 @@ public class Plugin implements VoicechatPlugin {
         double thunderRangeMultiplier = VoiceConfig.THUNDER_RANGE_MULTIPLIER.get();
         double sneakingRangeMultiplier = VoiceConfig.SNEAKING_RANGE_MULTIPLIER.get();
 
-        List<String> mobIds = getConfiguredMobIds();
-        List<String> animalIds = getConfiguredAnimalIds();
-        for (String animalId : animalIds) {
-            double threshold = getActivationThreshold(animalId);
-            double detectionRange = getDetectionRange(animalId);
-            double speed = getSpeed(animalId);
+        List<String> allIds = new ArrayList<>(EntityVoiceConfig.getAllEntityIds());
+
+        long currentTime = System.currentTimeMillis();
+
+        for (String id : allIds) {
+            EntityVoiceConfig.EntityConfig cfg = EntityVoiceConfig.getMonster(id);
+            if (cfg == null) cfg = EntityVoiceConfig.getAnimal(id);
+            if (cfg == null || !cfg.enabled) continue;
+            double threshold = cfg.threshold;
+            double detectionRange = cfg.range;
+            double speed = cfg.speed;
 
             if (isWhispering) {
                 detectionRange *= whisperRangeMultiplier;
                 speed *= whisperSpeedMultiplier;
-                if (sender.getPlayer().getPlayer() instanceof ServerPlayer player) {
-                    if (player.isCrouching()) {
-                        detectionRange *= sneakingRangeMultiplier;
+            }
+
+            if (sender.getPlayer().getPlayer() instanceof ServerPlayer p) {
+                if (p.isCrouching()) detectionRange *= sneakingRangeMultiplier;
+                if (p.level().isRaining() || p.level().isThundering())
+                    detectionRange *= thunderRangeMultiplier;
+                double[] armorMult = ArmorEventHandler.getArmorMultipliers(p);
+                detectionRange *= armorMult[1];
+                speed *= armorMult[0];
+            }
+
+            // --- DISABLED FOR NOW ---
+            // IAudioModifier audioModifier = AudioModifierFactory.createAudioModifier(
+            //         0.5, "voicechat", senderVec, senderVec
+            // );
+            // double modifiedRange = audioModifier.computeModifiedRange(detectionRange);
+            double modifiedRange = detectionRange; // usamos directamente detectionRange
+
+            double distance = senderVec.distanceTo(new Vec3(playerPosition.getX(), playerPosition.getY(), playerPosition.getZ()));
+            double distanceVolume = 1.0 - Math.min(distance, modifiedRange) / modifiedRange;
+
+            if (audioLevel >= threshold && distanceVolume > 0.0) {
+                BlockPos precisePos = new BlockPos(
+                        (int) Math.floor(senderVec.x),
+                        (int) Math.floor(senderVec.y),
+                        (int) Math.floor(senderVec.z)
+                );
+                playerSoundLocations.put(
+                        playerUUID,
+                        new SoundData(precisePos, audioLevel, currentTime)
+                );
+                if (DEBUG) {
+                    System.out.println("[DEBUG] " + id + " detects sound! " +
+                            "Threshold: " + threshold + " dB | " +
+                            "AudioLevel: " + audioLevel + " dB | " +
+                            "Range: " + detectionRange + " | " +
+                            "Speed: " + speed + " | " +
+                            "Position: " + precisePos);
+                }
+
+                // Death Angels
+                if (id.equals("quiet_place:death_angel") &&
+                        (audioLevel >= VoiceConfig.DEATH_ANGELS_THRESHOLD.get()) &&
+                        (!lastVoiceEffectTime.containsKey(playerUUID)
+                                || currentTime - lastVoiceEffectTime.get(playerUUID) > DEATH_ANGELS_EFFECT_COOLDOWN_MS)) {
+                    if (sender.getPlayer().getPlayer() instanceof ServerPlayer serverPlayer) {
+                        SoundEffectCommand.applyEffect(serverPlayer);
+                        lastVoiceEffectTime.put(playerUUID, currentTime);
+                        if (DEBUG) {
+                            System.out.println("[DEBUG] Efecto aplicado al jugador " + playerUUID);
+                        }
                     }
-                    if (player.level().isRaining() || player.level().isThundering()) {
-                        detectionRange *= thunderRangeMultiplier;
-                    }
-                    double[] armorMult = ArmorEventHandler.getArmorMultipliers(player);
-                    detectionRange *= armorMult[1];
-                    speed *= armorMult[0];
                 }
             } else {
-                if (sender.getPlayer().getPlayer() instanceof ServerPlayer player) {
-                    if (player.isCrouching()) {
-                        detectionRange *= sneakingRangeMultiplier;
-                    }
-                    if (player.level().isRaining() || player.level().isThundering()) {
-                        detectionRange *= thunderRangeMultiplier;
-                    }
-                    double[] armorMult = ArmorEventHandler.getArmorMultipliers(player);
-                    detectionRange *= armorMult[1];
-                    speed *= armorMult[0];
-                }
-            }
-
-            BlockPos senderPos = new BlockPos(
-                    (int) Math.floor(voicechatPosition.getX()),
-                    (int) Math.floor(voicechatPosition.getY()),
-                    (int) Math.floor(voicechatPosition.getZ())
-            );
-
-            Vec3 senderVec = new Vec3(voicechatPosition.getX(), voicechatPosition.getY(), voicechatPosition.getZ());
-            Vec3 playerVec = new Vec3(voicechatPosition.getX(), voicechatPosition.getY(), voicechatPosition.getZ());
-
-            IAudioModifier audioModifier = AudioModifierFactory.createAudioModifier(0.5, "voicechat", playerVec, senderVec);
-            detectionRange = audioModifier.computeModifiedRange(detectionRange);
-
-
-            double distanceSq = playerPosition.distSqr(senderPos);
-            double perceivedIntensityAnimal = audioLevel - 20 * Math.log10(Math.sqrt(distanceSq) + 1);
-            if (DEBUG) {
-                System.out.println("[DEBUG] Perceived Intensity for " + animalId + ": " + perceivedIntensityAnimal + " dB at distance " + Math.sqrt(distanceSq));
-            }
-            if (perceivedIntensityAnimal < threshold) {
                 if (DEBUG) {
-                    System.out.println("[DEBUG] Intensity too low for " + animalId + ": " + perceivedIntensityAnimal + " dB");
-                }
-                continue;
-            }
-            if (distanceSq <= detectionRange * detectionRange) {
-                playerSoundLocations.put(playerUUID, new SoundData(playerPosition, detectionRange, speed));
-                if (DEBUG) {
-                    System.out.println("[DEBUG] " + animalId + " detects sound at range " + detectionRange + " with speed " + speed + " from position " + playerPosition);
-                }
-            }
-        }
-        for (String mobId : mobIds) {
-            double threshold = getActivationThreshold(mobId);
-            double detectionRange = getDetectionRange(mobId);
-            double speed = getSpeed(mobId);
-
-            if (isWhispering) {
-                detectionRange *= whisperRangeMultiplier;
-                speed *= whisperSpeedMultiplier;
-                if (sender.getPlayer().getPlayer() instanceof ServerPlayer player) {
-                    if (player.isCrouching()) {
-                        detectionRange *= sneakingRangeMultiplier;
-                    }
-                    if (player.level().isRaining() || player.level().isThundering()) {
-                        detectionRange *= thunderRangeMultiplier;
-                    }
-                    double[] armorMult = ArmorEventHandler.getArmorMultipliers(player);
-                    detectionRange *= armorMult[1];
-                    speed *= armorMult[0];
-                }
-            } else {
-                if (sender.getPlayer().getPlayer() instanceof ServerPlayer player) {
-                    if (player.isCrouching()) {
-                        detectionRange *= sneakingRangeMultiplier;
-                    }
-                    if (player.level().isRaining() || player.level().isThundering()) {
-                        detectionRange *= thunderRangeMultiplier;
-                    }
-                    double[] armorMult = ArmorEventHandler.getArmorMultipliers(player);
-                    detectionRange *= armorMult[1];
-                    speed *= armorMult[0];
-                }
-            }
-
-            BlockPos senderPos = new BlockPos(
-                    (int) Math.floor(voicechatPosition.getX()),
-                    (int) Math.floor(voicechatPosition.getY()),
-                    (int) Math.floor(voicechatPosition.getZ())
-            );
-            Vec3 senderVec = new Vec3(voicechatPosition.getX(), voicechatPosition.getY(), voicechatPosition.getZ());
-            Vec3 playerVec = new Vec3(voicechatPosition.getX(), voicechatPosition.getY(), voicechatPosition.getZ());
-
-            IAudioModifier audioModifier = AudioModifierFactory.createAudioModifier(0.5, "voicechat", playerVec, senderVec);
-            detectionRange = audioModifier.computeModifiedRange(detectionRange);
-
-            double distanceSq = playerPosition.distSqr(senderPos);
-            double perceivedIntensityMob = audioLevel - 20 * Math.log10(Math.sqrt(distanceSq) + 1);
-            if (DEBUG) {
-                System.out.println("[DEBUG] Perceived Intensity for " + mobId + ": " + perceivedIntensityMob + " dB at distance " + Math.sqrt(distanceSq));
-            }
-            if (perceivedIntensityMob < threshold) {
-                if (DEBUG) {
-                    System.out.println("[DEBUG] Intensity too low for " + mobId + ": " + perceivedIntensityMob + " dB");
-                }
-                continue;
-            }
-
-            if (distanceSq <= detectionRange * detectionRange) {
-                playerSoundLocations.put(playerUUID, new SoundData(playerPosition, detectionRange, speed));
-                if (DEBUG) {
-                    System.out.println("[DEBUG] " + mobId + " detects sound at modified range " + detectionRange + " with modified speed " + speed + " from position " + playerPosition);
+                    System.out.println("[DEBUG] Intensity/range too low for " + id + ": "
+                            + audioLevel + " dB | " + distanceVolume);
                 }
             }
         }
         scheduler.schedule(() -> playerSoundLocations.remove(playerUUID), 5, TimeUnit.SECONDS);
-    }
-
-    private List<String> getConfiguredMobIds() {
-        Map<String, Map<String, Double>> mobConfigs = VoiceConfig.getMobVoiceConfigs();
-        return new ArrayList<>(mobConfigs.keySet());
-    }
-
-    private List<String> getConfiguredAnimalIds() {
-        Map<String, Map<String, Double>> mobConfigs = VoiceConfig.getAnimalVoiceConfigs();
-        return new ArrayList<>(mobConfigs.keySet());
-    }
-
-    private double getActivationThreshold(String mobId) {
-        Map<String, Double> mobConfig = VoiceConfig.getMobVoiceConfigs().get(mobId);
-        if (mobConfig != null && mobConfig.containsKey("threshold")) {
-            return mobConfig.get("threshold");
-        }
-        return -40.0;
-    }
-
-    private double getDetectionRange(String mobId) {
-        Map<String, Double> mobConfig = VoiceConfig.getMobVoiceConfigs().get(mobId);
-        if (mobConfig != null && mobConfig.containsKey("range")) {
-            return mobConfig.get("range");
-        }
-        return 16.0;
-    }
-
-    private double getSpeed(String mobId) {
-        Map<String, Double> mobConfig = VoiceConfig.getMobVoiceConfigs().get(mobId);
-        if (mobConfig != null && mobConfig.containsKey("speed")) {
-            return mobConfig.get("speed");
-        }
-        return 1.0;
     }
 }

@@ -69,7 +69,7 @@ public abstract class MobTargetMixin {
 
     @Unique
     private boolean ezvcsurvival$isPlayerCurrentlySpeaking(Player player) {
-        return Plugin.getLastSoundLocation(player.blockPosition(), 64.0) != null;
+        return Plugin.getLastSoundLocation(player.blockPosition(), 64.0, -20.0) != null;
     }
 
     @Unique
