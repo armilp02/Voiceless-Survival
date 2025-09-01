@@ -1,12 +1,9 @@
 package com.armilp.ezvcsurvival.mixins;
 
-import com.armilp.ezvcsurvival.goals.FollowVoiceGoal;
-import com.armilp.ezvcsurvival.goals.RunawayVoiceGoal;
-import com.armilp.ezvcsurvival.goals.ReactToGeneralSoundGoal;
-import com.armilp.ezvcsurvival.goals.ReactToGunfireGoal;
-import com.armilp.ezvcsurvival.config.VoiceConfig;
-import com.armilp.ezvcsurvival.config.SoundConfig;
+import com.armilp.ezvcsurvival.config.*;
+import com.armilp.ezvcsurvival.goals.*;
 import com.armilp.ezvcsurvival.data.SoundGroupData;
+import com.armilp.ezvcsurvival.util.IGoalRefresher;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
@@ -25,13 +22,17 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import javax.annotation.Nullable;
 import java.util.List;
-import java.util.Map;
 
 @Mixin(Mob.class)
-public abstract class MobEntityMixin {
+public abstract class MobEntityMixin implements IGoalRefresher {
 
-    @Unique
-    private boolean ezvcsurvival$goalsInjected = false;
+    @Unique private boolean ezvcsurvival$goalsInjected = false;
+
+    @Unique private FollowVoiceGoal ezvcsurvival$followGoal = null;
+    @Unique private RunawayVoiceGoal ezvcsurvival$runawayGoal = null;
+    @Unique private ReactToGeneralSoundGoal ezvcsurvival$generalSoundGoal = null;
+    @Unique private ReactToGunfireGoal ezvcsurvival$gunfireGoal = null;
+
 
     @Inject(method = "registerGoals", at = @At("TAIL"))
     private void ezvcsurvival$injectGoalsAfterRegister(CallbackInfo ci) {
@@ -97,90 +98,67 @@ public abstract class MobEntityMixin {
             String mobIdString = mobId.toString();
 
             // FollowVoiceGoal
-            Map<String, Map<String, Double>> mobVoiceConfigs = VoiceConfig.getMobVoiceConfigs();
-            if (mobVoiceConfigs != null && !mobVoiceConfigs.isEmpty() && mobVoiceConfigs.containsKey(mobIdString)) {
-                Map<String, Double> config = mobVoiceConfigs.get(mobIdString);
-                if (config != null) {
-                    double speed = config.getOrDefault("speed", 1.0);
-                    double range = config.getOrDefault("range", 16.0);
-                    double threshold = config.getOrDefault("threshold", -40.0);
+            if (!(mob instanceof Animal)) {
+                EntityVoiceConfig.EntityConfig voiceCfg = EntityVoiceConfig.getMonster(mobIdString);
+                if (voiceCfg != null && voiceCfg.enabled) {
+                    double speed = voiceCfg.speed;
+                    double range = voiceCfg.range;
+                    double threshold = voiceCfg.threshold;
 
                     if (speed > 0 && range > 0) {
                         FollowVoiceGoal voiceGoal = new FollowVoiceGoal(mob, speed, (int) range, threshold, 10000);
+                        ezvcsurvival$followGoal = voiceGoal;
                         mob.goalSelector.addGoal(0, voiceGoal);
-
-                        if (VoiceConfig.DEBUG.get()) {
-                            System.out.println("[EZVCSurvival] Successfully injected FollowVoiceGoal for mob: " +
-                                    mobIdString + " with params: speed=" + speed +
-                                    ", range=" + (int) range + ", threshold=" + threshold);
-                        }
-                    } else {
-                        if (VoiceConfig.DEBUG.get()) {
-                            System.err.println("[EZVCSurvival] Invalid config parameters for mob " + mobIdString +
-                                    ": speed=" + speed + ", range=" + range);
-                        }
                     }
                 }
             }
 
-            // RunawayVoiceGoal para animales
+            // RunawayVoiceGoal
             if (mob instanceof Animal animal) {
-                Map<String, Map<String, Double>> animalVoiceConfigs = VoiceConfig.getAnimalVoiceConfigs();
-                if (animalVoiceConfigs != null && animalVoiceConfigs.containsKey(mobIdString)) {
-                    Map<String, Double> config = animalVoiceConfigs.get(mobIdString);
-                    if (config != null) {
-                        double speed = config.getOrDefault("speed", 1.0);
-                        double range = config.getOrDefault("range", 16.0);
-                        double threshold = config.getOrDefault("threshold", -40.0);
+                EntityVoiceConfig.EntityConfig animalCfg = EntityVoiceConfig.getAnimal(mobIdString);
+                if (animalCfg != null && animalCfg.enabled) {
+                    double speed = animalCfg.speed;
+                    double range = animalCfg.range;
+                    double threshold = animalCfg.threshold;
 
-                        if (speed > 0 && range > 0) {
-                            RunawayVoiceGoal runawayGoal = new RunawayVoiceGoal(animal, speed, (int) range, threshold);
-                            animal.goalSelector.addGoal(4, runawayGoal);
-
-                            if (VoiceConfig.DEBUG.get()) {
-                                System.out.println("[EZVCSurvival] Successfully injected RunawayVoiceGoal for animal: " +
-                                        mobIdString + " with params: speed=" + speed +
-                                        ", range=" + (int) range + ", threshold=" + threshold);
-                            }
-                        }
+                    if (speed > 0 && range > 0) {
+                        RunawayVoiceGoal runawayGoal = new RunawayVoiceGoal(animal, speed, (int) range, threshold);
+                        ezvcsurvival$runawayGoal = runawayGoal;
+                        animal.goalSelector.addGoal(4, runawayGoal);
                     }
                 }
             }
 
             // ReactToGeneralSoundGoal
-            Map<String, Object> generalConfig = SoundConfig.getGeneralSoundReaction(mobIdString);
-            if (generalConfig != null) {
-                double speed = generalConfig.get("speed") instanceof Number ?
-                        ((Number) generalConfig.get("speed")).doubleValue() : 1.0;
-                double rangeDouble = generalConfig.get("range") instanceof Number ?
-                        ((Number) generalConfig.get("range")).doubleValue() : 16.0;
-                int range = (int) rangeDouble;
+            if (GeneralSoundsConfig.isEnabled()) {
+                GeneralSoundsConfig.Reaction generalReaction = GeneralSoundsConfig.getMobReactions().get(mobIdString);
+                if (generalReaction != null && generalReaction.enabled) {
+                    double speed = generalReaction.speed;
+                    double range = generalReaction.range;
 
-                List<SoundGroupData> soundGroups = SoundConfig.getEnabledSoundGroups();
-                if (!soundGroups.isEmpty()) {
-                    mob.goalSelector.addGoal(2, new ReactToGeneralSoundGoal(mob, speed, range, soundGroups));
-
-                    if (VoiceConfig.DEBUG.get()) {
-                        System.out.println("[EZVCSurvival] Successfully injected ReactToGeneralSoundGoal for mob: " +
-                                mobIdString + " with " + soundGroups.size() + " sound groups");
+                    if (speed > 0 && range > 0) {
+                        List<SoundGroupData> soundGroups = SoundConfig.getEnabledSoundGroups();
+                        if (!soundGroups.isEmpty()) {
+                            ReactToGeneralSoundGoal gGoal = new ReactToGeneralSoundGoal(mob, speed, (int) range, soundGroups);
+                            ezvcsurvival$generalSoundGoal = gGoal;
+                            mob.goalSelector.addGoal(2, gGoal);
+                        }
                     }
                 }
             }
 
             // ReactToGunfireGoal
-            Map<String, Object> gunfireConfig = SoundConfig.getGunfireSoundReaction(mobIdString);
-            if (gunfireConfig != null) {
-                double speed = gunfireConfig.get("speed") instanceof Number ?
-                        ((Number) gunfireConfig.get("speed")).doubleValue() : 1.0;
-                double rangeDouble = gunfireConfig.get("range") instanceof Number ?
-                        ((Number) gunfireConfig.get("range")).doubleValue() : 20.0;
-                int range = (int) rangeDouble;
+            if (GunfireConfig.isEnabled()) {
+                GunfireConfig.Reaction gunfireReaction = GunfireConfig.getMobReactions().get(mobIdString);
+                if (gunfireReaction != null && gunfireReaction.enabled) {
+                    double speed = gunfireReaction.speed;
+                    double range = gunfireReaction.range;
 
-                mob.goalSelector.addGoal(2, new ReactToGunfireGoal(mob, speed, range));
-
-                if (VoiceConfig.DEBUG.get()) {
-                    System.out.println("[EZVCSurvival] Successfully injected ReactToGunfireGoal for mob: " +
-                            mobIdString + " with params: speed=" + speed + ", range=" + range);
+                    if (speed > 0 && range > 0) {
+                        ReactToGunfireGoal gunGoal = new ReactToGunfireGoal(mob, speed, (int) range);
+                        ezvcsurvival$gunfireGoal = gunGoal;
+                        mob.goalSelector.addGoal(2, gunGoal);
+                    }
                 }
             }
 
@@ -188,10 +166,56 @@ public abstract class MobEntityMixin {
 
         } catch (Exception e) {
             if (VoiceConfig.DEBUG.get()) {
-                System.err.println("[EZVCSurvival] Failed to inject goals for mob " +
-                        mob.getType().toString() + ": " + e.getMessage());
-                e.printStackTrace();
+                System.err.println("[EZVCSurvival] Error injecting goals: " + e.getMessage());
+                e.printStackTrace(System.err);
             }
         }
     }
+    
+    @Unique
+    private void ezvcsurvival$cleanupOldGoals(Mob mob) {
+        try {
+            // Remover goals antiguos de forma más robusta
+            if (ezvcsurvival$followGoal != null) {
+                mob.goalSelector.removeGoal(ezvcsurvival$followGoal);
+                ezvcsurvival$followGoal = null;
+            }
+            if (ezvcsurvival$runawayGoal != null) {
+                mob.goalSelector.removeGoal(ezvcsurvival$runawayGoal);
+                ezvcsurvival$runawayGoal = null;
+            }
+            if (ezvcsurvival$generalSoundGoal != null) {
+                mob.goalSelector.removeGoal(ezvcsurvival$generalSoundGoal);
+                ezvcsurvival$generalSoundGoal = null;
+            }
+            if (ezvcsurvival$gunfireGoal != null) {
+                mob.goalSelector.removeGoal(ezvcsurvival$gunfireGoal);
+                ezvcsurvival$gunfireGoal = null;
+            }
+
+            ezvcsurvival$goalsInjected = false;
+        } catch (Exception e) {
+            if (VoiceConfig.DEBUG.get()) {
+                System.err.println("[EZVCSurvival] Error cleaning old goals: " + e.getMessage());
+            }
+        }
+    }
+    
+    @Override
+    public void ezvcsurvival$RefreshGoals() {
+        Mob mob = (Mob) (Object) this;
+        if (mob.level().isClientSide) return;
+        
+        try {
+            ezvcsurvival$goalsInjected = false;
+            ezvcsurvival$cleanupOldGoals(mob);
+
+            ezvcsurvival$injectAllGoals(mob);
+        } catch (Exception e) {
+            if (VoiceConfig.DEBUG.get()) {
+                System.err.println("[EZVCSurvival] Error in forced refresh: " + e.getMessage());
+            }
+        }
+    }
+
 }
