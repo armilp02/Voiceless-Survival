@@ -60,6 +60,10 @@ public class ConfigListScreen extends Screen {
         this.listType = listType;
         this.parent = parent;
         this.items = new ArrayList<>();
+
+        if (this.listType == ListType.GENERAL_SOUNDS_CONFIG || this.listType == ListType.GUNFIRE_CONFIG) {
+            this.showingSounds = false;
+        }
     }
 
     private static String getTitleKey(ListType type) {
@@ -94,7 +98,6 @@ public class ConfigListScreen extends Screen {
                 .bounds(this.width - 85, TOP_MARGIN, 70, BUTTON_HEIGHT).build();
         this.addRenderableWidget(refreshButton);
 
-        // Botones específicos para ciertos tipos
         if (listType == ListType.GENERAL_SOUNDS_CONFIG || listType == ListType.GUNFIRE_CONFIG) {
             toggleViewButton = Button.builder(
                     Component.translatable(showingSounds ? "button.ezvcsurvival.show_entities" : "button.ezvcsurvival.show_sounds"),
@@ -183,6 +186,9 @@ public class ConfigListScreen extends Screen {
     private void loadGeneralEntityConfigs() {
         items.clear();
         Map<String, GeneralSoundsConfig.Reaction> entityConfigs = GeneralSoundsConfig.getMobReactions();
+        if (entityConfigs == null) {
+            entityConfigs = java.util.Collections.emptyMap();
+        }
 
         for (EntityType<?> type : BuiltInRegistries.ENTITY_TYPE) {
             MobCategory category = type.getCategory();
@@ -254,13 +260,10 @@ public class ConfigListScreen extends Screen {
                 GeneralSoundsConfig.ROOT.enabled = newGeneralState;
                 GeneralSoundsConfig.persist();
 
-                try {
-                    EZVCNetwork.INSTANCE.sendToServer(
-                            new UpdateConfigPacket(UpdateConfigPacket.ConfigType.GENERAL_SOUND,
-                                    "global", newGeneralState, 1.0, 1.0)
-                    );
-                } catch (Exception ignored) {
-                }
+                EZVCNetwork.INSTANCE.sendToServer(
+                        new UpdateConfigPacket(UpdateConfigPacket.ConfigType.GENERAL_SOUND,
+                                "global", newGeneralState, 1.0, 1.0)
+                );
                 break;
 
             case GUNFIRE_CONFIG:
@@ -268,13 +271,10 @@ public class ConfigListScreen extends Screen {
                 GunfireConfig.ROOT.enabled = newGunfireState;
                 GunfireConfig.persist();
 
-                try {
-                    EZVCNetwork.INSTANCE.sendToServer(
-                            new UpdateConfigPacket(UpdateConfigPacket.ConfigType.GUNFIRE_SOUND,
-                                    "global", newGunfireState, 1.0, 1.0)
-                    );
-                } catch (Exception ignored) {
-                }
+                EZVCNetwork.INSTANCE.sendToServer(
+                        new UpdateConfigPacket(UpdateConfigPacket.ConfigType.GUNFIRE_SOUND,
+                                "global", newGunfireState, 1.0, 1.0)
+                );
                 break;
         }
         toggleEnabledButton.setMessage(getToggleEnabledMessage());
@@ -296,13 +296,10 @@ public class ConfigListScreen extends Screen {
     public void refreshData() {
         safeRefresh();
 
-        try {
-            EZVCNetwork.INSTANCE.sendToServer(
-                    new UpdateConfigPacket(UpdateConfigPacket.ConfigType.GENERAL_SOUND,
-                            "refresh", true, 1.0, 1.0)
-            );
-        } catch (Exception ignored) {
-        }
+        EZVCNetwork.INSTANCE.sendToServer(
+                new UpdateConfigPacket(UpdateConfigPacket.ConfigType.GENERAL_SOUND,
+                        "refresh", true, 1.0, 1.0)
+        );
     }
 
     public void updateList() {

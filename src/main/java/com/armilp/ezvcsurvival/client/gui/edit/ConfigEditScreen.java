@@ -107,7 +107,8 @@ public class ConfigEditScreen extends Screen {
                 break;
                 
             case GENERAL_SOUND_ENTITY:
-                GeneralSoundsConfig.Reaction generalReaction = GeneralSoundsConfig.getMobReactions().get(elementId);
+                java.util.Map<String, GeneralSoundsConfig.Reaction> reactions = GeneralSoundsConfig.getMobReactions();
+                GeneralSoundsConfig.Reaction generalReaction = reactions != null ? reactions.get(elementId) : null;
                 if (generalReaction != null) {
                     this.enabled = generalReaction.enabled;
                     this.speed = generalReaction.speed;
@@ -116,6 +117,15 @@ public class ConfigEditScreen extends Screen {
                     this.originalEnabled = generalReaction.enabled;
                     this.originalSpeed = generalReaction.speed;
                     this.originalRange = generalReaction.range;
+                } else {
+                    // Valores por defecto por si la configuración aún no existe
+                    this.enabled = true;
+                    this.speed = 1.0;
+                    this.range = 1.0;
+
+                    this.originalEnabled = this.enabled;
+                    this.originalSpeed = this.speed;
+                    this.originalRange = this.range;
                 }
                 break;
                 
@@ -278,33 +288,35 @@ public class ConfigEditScreen extends Screen {
                 if (threshold > 100.0) threshold = 100.0;
             }
 
+            // Siempre aplicar localmente primero (para singleplayer y cliente)
             switch (editType) {
                 case ENTITY_CONFIG:
                     EntityVoiceConfig.set(elementId, new EntityVoiceConfig.EntityConfig(enabled, speed, range, threshold));
                     EntityVoiceConfig.persist();
                     break;
-                    
+
                 case GENERAL_SOUND_CONFIG:
                     GeneralSoundsConfig.setSoundEntry(elementId, enabled, speed, range);
                     GeneralSoundsConfig.persist();
                     break;
-                    
+
                 case GENERAL_SOUND_ENTITY:
                     GeneralSoundsConfig.setMobReaction(elementId, enabled, speed, range);
                     GeneralSoundsConfig.persist();
                     break;
-                    
+
                 case GUNFIRE_SOUND_CONFIG:
                     GunfireConfig.setPrioritySound(elementId, priority);
                     GunfireConfig.persist();
                     break;
-                    
+
                 case GUNFIRE_ENTITY:
                     GunfireConfig.setMobReaction(elementId, enabled, speed, range);
                     GunfireConfig.persist();
                     break;
             }
 
+            // Siempre enviar al servidor para sincronización
             sendUpdate();
 
             if (parent instanceof ConfigListScreen) {
@@ -429,7 +441,7 @@ public class ConfigEditScreen extends Screen {
                     break;
 
                 case GENERAL_SOUND_ENTITY:
-                    EZVCNetwork.INSTANCE.sendToServer(new UpdateConfigPacket(UpdateConfigPacket.ConfigType.GENERAL_SOUND, elementId, enabled, speed, range));
+                    EZVCNetwork.INSTANCE.sendToServer(new UpdateConfigPacket(UpdateConfigPacket.ConfigType.GENERAL_SOUND_ENTITY, elementId, enabled, speed, range));
                     break;
 
                 case GUNFIRE_SOUND_CONFIG:
@@ -442,10 +454,10 @@ public class ConfigEditScreen extends Screen {
             }
 
             if (VoiceConfig.DEBUG.get()) {
-                System.out.println("[EZVCSurvival] Configuración enviada al servidor: " + editType + " - " + elementId);
+                System.out.println("[EZVCSurvival] Configuration sent to server: " + editType + " - " + elementId);
             }
         } catch (Exception e) {
-            System.err.println("[EZVCSurvival] Error enviando configuración: " + e.getMessage());
+            System.err.println("[EZVCSurvival] Error sending configuration: " + e.getMessage());
             e.printStackTrace();
         }
     }
