@@ -95,6 +95,10 @@ public abstract class MobEntityMixin implements IGoalRefresher {
 
         try {
             ResourceLocation mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType());
+            if (mobId == null) {
+                ezvcsurvival$goalsInjected = true;
+                return;
+            }
             String mobIdString = mobId.toString();
 
             // FollowVoiceGoal
