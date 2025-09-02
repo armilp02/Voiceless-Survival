@@ -31,7 +31,7 @@ public class OpenConfigCommand {
                         return 1;
                     } else {
                         context.getSource().sendFailure(
-                            Component.literal("Este comando solo puede ser usado por jugadores")
+                            Component.literal("This command can only be used by players")
                         );
                         return 0;
                     }
