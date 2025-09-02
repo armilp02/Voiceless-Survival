@@ -73,7 +73,7 @@ public final class EntityVoiceConfig {
                     ANIMAL_CONFIGS = new HashMap<>();
                 }
             } catch (IOException e) {
-                EZVCSurvival.LOGGER.warn("Error leyendo entities_voices.json, regenerando: {}", e.getMessage());
+                EZVCSurvival.LOGGER.warn("Error reading entities_voices.json, regenerating: {}", e.getMessage());
                 MONSTER_CONFIGS = new HashMap<>();
                 ANIMAL_CONFIGS = new HashMap<>();
                 generateDefaults();
@@ -160,7 +160,7 @@ public final class EntityVoiceConfig {
             }
             Files.move(tmp, path, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {
-            EZVCSurvival.LOGGER.warn("No se pudo guardar entities_voices.json: {}", e.getMessage());
+            EZVCSurvival.LOGGER.warn("Could not save entities_voices.json: {}", e.getMessage());
         }
     }
 
@@ -179,11 +179,11 @@ public final class EntityVoiceConfig {
 
         public static EntityConfig defaultFor(EntityType<?> type) {
             double baseSpeed = 1.0;
-            double baseRange = 50.0; // Valor por defecto más razonable
+            double baseRange = 50.0;
             double baseThreshold = -20.0;
 
             if (type.getCategory() == MobCategory.MONSTER) {
-                baseRange = 60.0; // Valor por defecto más razonable para monstruos
+                baseRange = 60.0;
             }
             return new EntityConfig(true, baseSpeed, baseRange, baseThreshold);
         }

@@ -32,18 +32,44 @@ public final class GeneralSoundsConfig {
 
     public static void init() { loadOrCreate(); }
 
-    public static Map<String, Reaction> getMobReactions() { return ROOT.mobs; }
-    public static Map<String, SoundEntry> getSounds() { return ROOT.sounds; }
+    public static Map<String, Reaction> getMobReactions() {
+        if (ROOT == null) ROOT = new Root();
+        if (ROOT.mobs == null) ROOT.mobs = new HashMap<>();
+        return ROOT.mobs;
+    }
+    public static Map<String, SoundEntry> getSounds() {
+        if (ROOT == null) ROOT = new Root();
+        if (ROOT.sounds == null) ROOT.sounds = new HashMap<>();
+        return ROOT.sounds;
+    }
     public static boolean isEnabled() { return ROOT != null ? ROOT.enabled : true; }
 
     public static void setMobReaction(String entityId, boolean enabled, double speed, double range) {
+        if (ROOT == null) ROOT = new Root();
         if (ROOT.mobs == null) ROOT.mobs = new HashMap<>();
-        ROOT.mobs.put(entityId, new Reaction(enabled, speed, range));
+
+        Reaction existing = ROOT.mobs.get(entityId);
+        if (existing != null) {
+            existing.enabled = enabled;
+            existing.speed = speed;
+            existing.range = range;
+        } else {
+            ROOT.mobs.put(entityId, new Reaction(enabled, speed, range));
+        }
     }
 
     public static void setSoundEntry(String soundId, boolean enabled, double speedMultiplier, double rangeMultiplier) {
+        if (ROOT == null) ROOT = new Root();
         if (ROOT.sounds == null) ROOT.sounds = new HashMap<>();
-        ROOT.sounds.put(soundId, new SoundEntry(enabled, speedMultiplier, rangeMultiplier));
+
+        SoundEntry existing = ROOT.sounds.get(soundId);
+        if (existing != null) {
+            existing.enabled = enabled;
+            existing.speed_multiplier = speedMultiplier;
+            existing.range_multiplier = rangeMultiplier;
+        } else {
+            ROOT.sounds.put(soundId, new SoundEntry(enabled, speedMultiplier, rangeMultiplier));
+        }
     }
 
     public static void persist() {
@@ -64,7 +90,7 @@ public final class GeneralSoundsConfig {
                 Root loaded = GSON.fromJson(r, ROOT_TYPE);
                 ROOT = loaded != null ? loaded : defaultRoot();
             } catch (IOException e) {
-                EZVCSurvival.LOGGER.warn("Error leyendo generalsounds.json, regenerando: {}", e.getMessage());
+                EZVCSurvival.LOGGER.warn("Error reading generalsounds.json, regenerating: {}", e.getMessage());
                 ROOT = defaultRoot();
                 save(path);
             }
@@ -105,8 +131,7 @@ public final class GeneralSoundsConfig {
             if (!id.startsWith("pointblank:")) {
                 SoundEntry soundEntry = ROOT.sounds.get(id);
                 if (id.contains("place") || id.contains("break") || id.contains("door") || id.contains("chest")
-                        || id.contains("pressure_plate") || id.contains("tripwire") || id.contains("dispenser")
-                        || id.contains("anvil")) {
+                        || id.contains("pressure_plate") || id.contains("tripwire") || id.contains("dispenser")) {
                     if (soundEntry != null && !soundEntry.enabled) {
                         soundEntry.enabled = true;
                         changed = true;
@@ -140,7 +165,7 @@ public final class GeneralSoundsConfig {
             }
             Files.move(tmp, path, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {
-            EZVCSurvival.LOGGER.warn("No se pudo guardar generalsounds.json: {}", e.getMessage());
+            EZVCSurvival.LOGGER.warn("Could not save generalsounds.json: {}", e.getMessage());
         }
     }
 

@@ -29,8 +29,16 @@ public final class GunfireConfig {
     private GunfireConfig() {}
 
     public static void init() { loadOrCreate(); }
-    public static Map<String, Reaction> getMobReactions() { return ROOT.mobs; }
-    public static Map<String, Boolean> getGunPrioritySounds() { return ROOT.priority_sounds; }
+    public static Map<String, Reaction> getMobReactions() {
+        if (ROOT == null) ROOT = new Root();
+        if (ROOT.mobs == null) ROOT.mobs = new HashMap<>();
+        return ROOT.mobs;
+    }
+    public static Map<String, Boolean> getGunPrioritySounds() {
+        if (ROOT == null) ROOT = new Root();
+        if (ROOT.priority_sounds == null) ROOT.priority_sounds = new HashMap<>();
+        return ROOT.priority_sounds;
+    }
     public static boolean isEnabled() { return ROOT != null ? ROOT.enabled : true; }
 
     private static Path getPath() {
@@ -46,7 +54,7 @@ public final class GunfireConfig {
                 Root loaded = GSON.fromJson(r, ROOT_TYPE);
                 ROOT = loaded != null ? loaded : defaultRoot();
             } catch (IOException e) {
-                EZVCSurvival.LOGGER.warn("Error leyendo gunfire.json, regenerando: {}", e.getMessage());
+                EZVCSurvival.LOGGER.warn("Error reading gunfire.json, regenerating: {}", e.getMessage());
                 ROOT = defaultRoot();
                 save(path);
             }
@@ -77,7 +85,8 @@ public final class GunfireConfig {
         for (var sound : BuiltInRegistries.SOUND_EVENT) {
             String id = Objects.requireNonNull(BuiltInRegistries.SOUND_EVENT.getKey(sound)).toString();
             if (!ROOT.priority_sounds.containsKey(id)) {
-                ROOT.priority_sounds.put(id, Boolean.FALSE);
+                boolean isExplosion = id.equals("minecraft:entity.generic.explode");
+                ROOT.priority_sounds.put(id, isExplosion);
                 changed = true;
             }
         }
@@ -99,7 +108,7 @@ public final class GunfireConfig {
             }
             Files.move(tmp, path, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {
-            EZVCSurvival.LOGGER.warn("No se pudo guardar gunfire.json: {}", e.getMessage());
+            EZVCSurvival.LOGGER.warn("Could not save gunfire.json: {}", e.getMessage());
         }
     }
 

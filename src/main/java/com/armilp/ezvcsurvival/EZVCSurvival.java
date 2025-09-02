@@ -1,8 +1,7 @@
 package com.armilp.ezvcsurvival;
 
-import com.armilp.ezvcsurvival.config.SoundConfig;
-import com.armilp.ezvcsurvival.config.VoiceConfig;
-import com.armilp.ezvcsurvival.events.GunFireListener;
+import com.armilp.ezvcsurvival.config.*;
+import com.armilp.ezvcsurvival.compat.tacz.GunFireListener;
 import com.armilp.ezvcsurvival.network.EZVCNetwork;
 import com.mojang.logging.LogUtils;
 import com.tacz.guns.GunMod;
@@ -51,9 +50,11 @@ public class EZVCSurvival {
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
+        EntityVoiceConfig.init();
+        GeneralSoundsConfig.init();
+        GunfireConfig.init();
         SoundConfig.loadConfigs();
     }
-
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
     }
