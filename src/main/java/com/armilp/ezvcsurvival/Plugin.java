@@ -166,7 +166,7 @@ public class Plugin implements VoicechatPlugin {
             //         0.5, "voicechat", senderVec, senderVec
             // );
             // double modifiedRange = audioModifier.computeModifiedRange(detectionRange);
-            double modifiedRange = detectionRange; // usamos directamente detectionRange
+            double modifiedRange = detectionRange;
 
             double distance = senderVec.distanceTo(new Vec3(playerPosition.getX(), playerPosition.getY(), playerPosition.getZ()));
             double distanceVolume = 1.0 - Math.min(distance, modifiedRange) / modifiedRange;
@@ -179,7 +179,7 @@ public class Plugin implements VoicechatPlugin {
                 );
                 playerSoundLocations.put(
                         playerUUID,
-                        new SoundData(precisePos, audioLevel, currentTime)
+                        new SoundData(precisePos, audioLevel)
                 );
                 if (DEBUG) {
                     System.out.println("[DEBUG] " + id + " detects sound! " +

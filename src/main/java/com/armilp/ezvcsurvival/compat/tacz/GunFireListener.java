@@ -1,4 +1,4 @@
-package com.armilp.ezvcsurvival.events;
+package com.armilp.ezvcsurvival.compat.tacz;
 
 import com.armilp.ezvcsurvival.commands.SoundEffectCommand;
 import com.armilp.ezvcsurvival.config.SoundConfig;
@@ -87,7 +87,6 @@ public class GunFireListener {
                 if (silence != null && silence.right()) return true;
             }
         }
-        // 2. Fallback manual por ID, ahora desde config
         IGun gun = IGun.getIGunOrNull(gunStack);
         if (gun != null) {
             ResourceLocation gunId = gun.getGunId(gunStack);

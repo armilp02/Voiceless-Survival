@@ -14,8 +14,4 @@ public class TimedSoundData {
         this.speedMultiplier = speedMultiplier;
         this.rangeMultiplier = rangeMultiplier;
     }
-
-    public TimedSoundData(Vec3 position, long timestamp) {
-        this(position, timestamp, 1.0, 1.0);
-    }
 }

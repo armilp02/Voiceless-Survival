@@ -159,7 +159,6 @@ public class SoundConfig {
         }
     }
 
-
     public static List<SoundGroupData> getEnabledSoundGroups() {
         return Collections.unmodifiableList(customSoundGroups);
     }
@@ -214,13 +213,5 @@ public class SoundConfig {
 
     public static List<SoundGroupData> getPriorityGroups() {
         return Collections.unmodifiableList(priorityGroups);
-    }
-
-    public static Map<String, Object> getGeneralSoundReaction(String mobId) {
-        return generalReactionsMap.get(mobId);
-    }
-
-    public static Map<String, Object> getGunfireSoundReaction(String mobId) {
-        return gunfireReactionsMap.get(mobId);
     }
 }
