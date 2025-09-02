@@ -2,7 +2,7 @@ package com.armilp.ezvcsurvival.goals;
 
 import com.armilp.ezvcsurvival.data.GunshotData;
 import com.armilp.ezvcsurvival.data.SoundGroupData;
-import com.armilp.ezvcsurvival.events.GunFireListener;
+import com.armilp.ezvcsurvival.compat.tacz.GunFireListener;
 import com.armilp.ezvcsurvival.events.SoundEventTracker;
 import com.armilp.ezvcsurvival.config.SoundConfig;
 import net.minecraft.resources.ResourceLocation;
@@ -10,16 +10,13 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.levelgen.Heightmap;
 
 public class ReactToGunfireGoal extends Goal {
     private final Mob mob;
     private final double baseSpeed;
     private final double baseRange;
-
-    public static Vec3 lastPointBlankSoundPos = null;
-    public static long lastPointBlankSoundTimestamp = 0;
-    public static String lastPointBlankGunType = null;
-    private static final long POINT_BLANK_SOUND_EXPIRATION_MS = 5000;
 
     public static Vec3 lastPrioritySoundPos = null;
     public static long lastPrioritySoundTimestamp = 0;
@@ -35,11 +32,6 @@ public class ReactToGunfireGoal extends Goal {
     public boolean canUse() {
         if (mob.getTarget() != null) {
             return false;
-        }
-
-        if (lastPointBlankSoundPos != null && System.currentTimeMillis() - lastPointBlankSoundTimestamp > POINT_BLANK_SOUND_EXPIRATION_MS) {
-            lastPointBlankSoundPos = null;
-            lastPointBlankGunType = null;
         }
 
         if (lastPrioritySoundPos != null && System.currentTimeMillis() - lastPrioritySoundTimestamp > PRIORITY_SOUND_DURATION_MS) {
@@ -67,17 +59,10 @@ public class ReactToGunfireGoal extends Goal {
             GunshotData gunshotData = GunFireListener.getLastGunshotData();
             if (gunshotData != null) {
                 effectiveGunType = gunshotData.gunType.name().toLowerCase();
-            } else if (lastPointBlankSoundPos != null && lastPointBlankGunType != null) {
-                effectiveGunType = lastPointBlankGunType;
             }
 
             if (effectiveGunType != null) {
-                double rangeMultiplier;
-                if (lastPointBlankSoundPos != null) {
-                    rangeMultiplier = SoundConfig.getPointBlankRangeMultiplier(effectiveGunType);
-                } else {
-                    rangeMultiplier = SoundConfig.getRangeMultiplier(effectiveGunType);
-                }
+                double rangeMultiplier = SoundConfig.getRangeMultiplier(effectiveGunType);
                 effectiveRange = baseRange * rangeMultiplier;
             }
 
@@ -85,10 +70,7 @@ public class ReactToGunfireGoal extends Goal {
                 effectiveRange *= SoundConfig.THUNDER_RANGE_MULTIPLIER.get();
             }
 
-            boolean gunshotTriggered = gunshotData != null && mobCenterPos.distanceTo(gunshotData.position) <= effectiveRange;
-            boolean pointBlankTriggered = lastPointBlankSoundPos != null && mobCenterPos.distanceTo(lastPointBlankSoundPos) <= effectiveRange;
-
-            return gunshotTriggered || pointBlankTriggered;
+            return gunshotData != null && mobCenterPos.distanceTo(gunshotData.position) <= effectiveRange;
         }
 
         return false;
@@ -120,11 +102,6 @@ public class ReactToGunfireGoal extends Goal {
     }
 
     private void updateNavigation() {
-        if (lastPointBlankSoundPos != null && System.currentTimeMillis() - lastPointBlankSoundTimestamp > POINT_BLANK_SOUND_EXPIRATION_MS) {
-            lastPointBlankSoundPos = null;
-            lastPointBlankGunType = null;
-        }
-
         if (lastPrioritySoundPos != null && System.currentTimeMillis() - lastPrioritySoundTimestamp > PRIORITY_SOUND_DURATION_MS) {
             lastPrioritySoundPos = null;
         }
@@ -146,10 +123,10 @@ public class ReactToGunfireGoal extends Goal {
 
             if (currentPos.distanceTo(lastPrioritySoundPos) <= effectiveRange) {
                 if (mob instanceof Monster) {
-                    target = new Vec3(lastPrioritySoundPos.x, mob.getY(), lastPrioritySoundPos.z);
+                    target = grounded(lastPrioritySoundPos);
                 } else {
                     Vec3 directionAway = currentPos.subtract(lastPrioritySoundPos).normalize();
-                    target = currentPos.add(directionAway.scale(effectiveRange));
+                    target = grounded(currentPos.add(directionAway.scale(effectiveRange)));
                 }
 
                 if (target != null) {
@@ -168,20 +145,11 @@ public class ReactToGunfireGoal extends Goal {
             GunshotData gunshotData = GunFireListener.getLastGunshotData();
             if (gunshotData != null) {
                 effectiveGunType = gunshotData.gunType.name().toLowerCase();
-            } else if (lastPointBlankSoundPos != null && lastPointBlankGunType != null) {
-                effectiveGunType = lastPointBlankGunType;
             }
 
             if (effectiveGunType != null) {
-                double rangeMultiplier;
-                double speedMultiplier;
-                if (lastPointBlankSoundPos != null) {
-                    rangeMultiplier = SoundConfig.getPointBlankRangeMultiplier(effectiveGunType);
-                    speedMultiplier = SoundConfig.getPointBlankSpeedMultiplier(effectiveGunType);
-                } else {
-                    rangeMultiplier = SoundConfig.getRangeMultiplier(effectiveGunType);
-                    speedMultiplier = SoundConfig.getSpeedMultiplier(effectiveGunType);
-                }
+                double rangeMultiplier = SoundConfig.getRangeMultiplier(effectiveGunType);
+                double speedMultiplier = SoundConfig.getSpeedMultiplier(effectiveGunType);
                 effectiveRange = baseRange * rangeMultiplier;
                 effectiveSpeed = baseSpeed * speedMultiplier;
             }
@@ -192,34 +160,26 @@ public class ReactToGunfireGoal extends Goal {
 
             if (mob instanceof Monster) {
                 if (gunshotData != null && currentPos.distanceTo(gunshotData.position) <= effectiveRange) {
-                    target = new Vec3(gunshotData.position.x, mob.getY(), gunshotData.position.z);
-                } else if (lastPointBlankSoundPos != null && currentPos.distanceTo(lastPointBlankSoundPos) <= effectiveRange) {
-                    target = new Vec3(lastPointBlankSoundPos.x, mob.getY(), lastPointBlankSoundPos.z);
+                    target = grounded(gunshotData.position);
                 }
 
                 if (target != null) {
                     mob.getNavigation().moveTo(target.x, target.y, target.z, effectiveSpeed);
-                    if (currentPos.distanceTo(target) < 1.0) {
-                        lastPointBlankSoundPos = null;
-                        lastPointBlankGunType = null;
-                    }
                 }
             } else {
-                Vec3 dangerPos = null;
-
                 if (gunshotData != null && currentPos.distanceTo(gunshotData.position) <= effectiveRange) {
-                    dangerPos = gunshotData.position;
-                } else if (lastPointBlankSoundPos != null && currentPos.distanceTo(lastPointBlankSoundPos) <= effectiveRange) {
-                    dangerPos = lastPointBlankSoundPos;
-                }
-
-                if (dangerPos != null) {
-                    Vec3 directionAway = currentPos.subtract(dangerPos).normalize();
-                    Vec3 fleeTarget = currentPos.add(directionAway.scale(effectiveRange));
+                    Vec3 directionAway = currentPos.subtract(gunshotData.position).normalize();
+                    Vec3 fleeTarget = grounded(currentPos.add(directionAway.scale(effectiveRange)));
                     mob.getNavigation().moveTo(fleeTarget.x, fleeTarget.y, fleeTarget.z, effectiveSpeed);
                 }
             }
         }
+    }
+
+    private Vec3 grounded(Vec3 desiredXZ) {
+        BlockPos base = BlockPos.containing(desiredXZ.x, 0, desiredXZ.z);
+        BlockPos top = mob.level().getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, base);
+        return new Vec3(top.getX() + 0.5, top.getY(), top.getZ() + 0.5);
     }
 
     private ResourceLocation toLocation(String soundStr) {

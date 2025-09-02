@@ -8,6 +8,8 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -24,7 +26,7 @@ public class ReactToGeneralSoundGoal extends Goal {
     private Vec3 lastAttackerPos = null;
     private static final List<ReactToGeneralSoundGoal> activeGoals = new CopyOnWriteArrayList<>();
 
-    private static final long PRIORITY_SOUND_DURATION_MS = 3000; // 3 seconds priority
+    private static final long PRIORITY_SOUND_DURATION_MS = 3000;
 
     public ReactToGeneralSoundGoal(Mob mob, double speed, double range, List<SoundGroupData> soundGroups) {
         this.mob = mob;
@@ -154,10 +156,10 @@ public class ReactToGeneralSoundGoal extends Goal {
             if (currentPos.distanceTo(ReactToGunfireGoal.lastPrioritySoundPos) <= priorityRange) {
                 Vec3 target;
                 if (mob instanceof Monster) {
-                    target = new Vec3(ReactToGunfireGoal.lastPrioritySoundPos.x, mob.getY(), ReactToGunfireGoal.lastPrioritySoundPos.z);
+                    target = grounded(ReactToGunfireGoal.lastPrioritySoundPos);
                 } else {
                     Vec3 directionAway = currentPos.subtract(ReactToGunfireGoal.lastPrioritySoundPos).normalize();
-                    target = currentPos.add(directionAway.scale(priorityRange));
+                    target = grounded(currentPos.add(directionAway.scale(priorityRange)));
                 }
 
                 if (currentPos.distanceTo(ReactToGunfireGoal.lastPrioritySoundPos) > 50.0) {
@@ -187,14 +189,15 @@ public class ReactToGeneralSoundGoal extends Goal {
 
                         if (currentPos.distanceTo(pos) <= grpRange) {
                             if (mob instanceof Monster) {
+                                Vec3 target = grounded(pos);
                                 if (currentPos.distanceTo(pos) > 50.0) {
-                                    mob.getNavigation().moveTo(pos.x, pos.y, pos.z, grpSpeed * 0.8);
+                                    mob.getNavigation().moveTo(target.x, target.y, target.z, grpSpeed * 0.8);
                                 } else {
-                                    mob.getNavigation().moveTo(pos.x, pos.y, pos.z, grpSpeed);
+                                    mob.getNavigation().moveTo(target.x, target.y, target.z, grpSpeed);
                                 }
                             } else {
                                 Vec3 directionAway = currentPos.subtract(pos).normalize();
-                                Vec3 fleeTarget = currentPos.add(directionAway.scale(grpRange));
+                                Vec3 fleeTarget = grounded(currentPos.add(directionAway.scale(grpRange)));
                                 mob.getNavigation().moveTo(fleeTarget.x, fleeTarget.y, fleeTarget.z, grpSpeed);
                             }
                             return;
@@ -205,7 +208,7 @@ public class ReactToGeneralSoundGoal extends Goal {
 
             if (!(mob instanceof Monster) && lastAttackerPos != null) {
                 Vec3 directionAway = currentPos.subtract(lastAttackerPos).normalize();
-                Vec3 fleeTarget = currentPos.add(directionAway.scale(range));
+                Vec3 fleeTarget = grounded(currentPos.add(directionAway.scale(range)));
 
                 if (currentPos.distanceTo(lastAttackerPos) > 50.0) {
                     mob.getNavigation().moveTo(fleeTarget.x, fleeTarget.y, fleeTarget.z, speed * 0.8);
@@ -221,6 +224,12 @@ public class ReactToGeneralSoundGoal extends Goal {
             return new ResourceLocation(soundStr);
         }
         return new ResourceLocation("minecraft", soundStr);
+    }
+
+    private Vec3 grounded(Vec3 desiredXZ) {
+        BlockPos base = BlockPos.containing(desiredXZ.x, 0, desiredXZ.z);
+        BlockPos top = mob.level().getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, base);
+        return new Vec3(top.getX() + 0.5, top.getY(), top.getZ() + 0.5);
     }
 
     private Vec3 getCurrentTargetPosition() {

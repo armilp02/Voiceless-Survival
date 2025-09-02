@@ -5,6 +5,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.levelgen.Heightmap;
 
 import java.util.EnumSet;
 
@@ -95,7 +96,10 @@ public class FollowVoiceGoal extends Goal {
     }
 
     private void handleSoundInteraction() {
-        double distanceSq = mob.blockPosition().distSqr(targetSoundPosition);
+        BlockPos groundedPos = mob.level().getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, targetSoundPosition);
+        double dx = (mob.getX() - (groundedPos.getX() + 0.5));
+        double dz = (mob.getZ() - (groundedPos.getZ() + 0.5));
+        double distanceSq = dx * dx + dz * dz;
         double arrivalThresholdSq = this.threshold * this.threshold;
 
         if (distanceSq <= arrivalThresholdSq) {
@@ -128,10 +132,11 @@ public class FollowVoiceGoal extends Goal {
 
     private void moveToSoundPosition() {
         if (targetSoundPosition != null) {
+            BlockPos ground = mob.level().getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, targetSoundPosition);
             mob.getNavigation().moveTo(
-                    targetSoundPosition.getX() + 0.5,
-                    targetSoundPosition.getY(),
-                    targetSoundPosition.getZ() + 0.5,
+                    ground.getX() + 0.5,
+                    ground.getY(),
+                    ground.getZ() + 0.5,
                     speedModifier
             );
         }
