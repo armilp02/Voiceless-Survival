@@ -1,5 +1,5 @@
 {
-  "screen.ezvcsurvival.config_editor": "Configuration Editor - VoicelessSurvival",
+  "screen.ezvcsurvival.config_editor": "Configuration Editor",
   "screen.ezvcsurvival.config_editor.subtitle": "Select the type of configuration you want to edit",
   "screen.ezvcsurvival.config_editor.info": "Configure the behavior of entities and sounds in your world",
   "screen.ezvcsurvival.entity_config_list": "Entity Configuration",
@@ -8,11 +8,9 @@
   "screen.ezvcsurvival.entity_config_edit": "Edit Entity: %s",
   "screen.ezvcsurvival.general_sound_config_edit": "Edit Sound: %s",
   "screen.ezvcsurvival.general_sound_entity_edit": "Edit Sound Entity: %s",
-  "screen.ezvcsurvival.gunfire_sound_config_edit": "Edit Gunfire Sound: %s",
   "screen.ezvcsurvival.gunfire_entity_edit": "Edit Gunfire Entity: %s",
-  "screen.ezvcsurvival.config_edit": "Edit Configuration",
-  
-  "button.ezvcsurvival.entity_config": "Entities Voice Config",
+
+  "button.ezvcsurvival.entity_config": "Entity Voice Config",
   "button.ezvcsurvival.general_sounds": "General Sounds",
   "button.ezvcsurvival.gunfire_config": "Gunfire Config (TACZ)",
   "button.ezvcsurvival.back": "Back",
@@ -20,43 +18,26 @@
   "button.ezvcsurvival.cancel": "Cancel",
   "button.ezvcsurvival.reset": "Reset",
   "button.ezvcsurvival.refresh": "Refresh",
-  "button.ezvcsurvival.edit_selected": "Edit Selected",
-  "button.ezvcsurvival.show_entities": "View Entities",
-  "button.ezvcsurvival.show_sounds": "View Sounds",
+  "button.ezvcsurvival.show_entities": "Show Entities",
+  "button.ezvcsurvival.show_sounds": "Show Sounds",
   "button.ezvcsurvival.enabled": "Enabled",
   "button.ezvcsurvival.disabled": "Disabled",
-  "button.ezvcsurvival.priority_on": "Priority ON",
-  "button.ezvcsurvival.priority_off": "Priority OFF",
   "button.ezvcsurvival.disable_all": "Disable All",
   "button.ezvcsurvival.enable_all": "Enable All",
   "button.ezvcsurvival.no_changes": "No Changes",
+  "button.ezvcsurvival.priority_on": "Priority: ON",
+  "button.ezvcsurvival.priority_off": "Priority: OFF",
 
-  "checkbox.ezvcsurvival.enabled": "Enabled",
-  
-  "label.ezvcsurvival.speed": "Speed:",
-  "label.ezvcsurvival.range": "Range:",
-  "label.ezvcsurvival.threshold": "Threshold:",
-  "label.ezvcsurvival.speed_multiplier": "Speed Multiplier:",
-  "label.ezvcsurvival.range_multiplier": "Range Multiplier:",
-  "label.ezvcsurvival.priority": "Priority:",
-  
   "textbox.ezvcsurvival.search": "Search...",
-  
+
   "gui.ezvcsurvival.entity_count": "Entities: %d",
   "gui.ezvcsurvival.sound_count": "Sounds: %d",
-  "gui.ezvcsurvival.compact_mode": "Compact mode activated",
   "gui.ezvcsurvival.click_to_edit_entity": "Click on any entity to edit",
   "gui.ezvcsurvival.click_to_edit_sound": "Click on any sound to edit",
-  "gui.ezvcsurvival.click_to_edit_priority": "Click on any sound to edit priority",
   "gui.ezvcsurvival.search": "Search",
   "gui.ezvcsurvival.enabled": "Enabled",
   "gui.ezvcsurvival.disabled": "Disabled",
-  
-  "message.ezvcsurvival.config_open": "Configuration editor opened",
-  "message.ezvcsurvival.player_only": "This command can only be used by players",
-  "message.ezvcsurvival.configs_reloaded": "Configurations reloaded successfully",
-  "message.ezvcsurvival.config_reload_error": "Error reloading configurations: %s",
-  
+
   "tooltip.ezvcsurvival.configuration": "§a§lConfiguration:",
   "tooltip.ezvcsurvival.enabled": "§f• %s",
   "tooltip.ezvcsurvival.speed": "§f• Speed: %s",
@@ -64,11 +45,7 @@
   "tooltip.ezvcsurvival.threshold": "§f• Threshold: %s",
   "tooltip.ezvcsurvival.speed_multiplier": "§f• Speed Multiplier: %s",
   "tooltip.ezvcsurvival.range_multiplier": "§f• Range Multiplier: %s",
-  "tooltip.ezvcsurvival.sound": "§6§lSound: %s",
-  "tooltip.ezvcsurvival.entity": "§6§lEntity: %s",
+  "tooltip.ezvcsurvival.priority_sound": "§f• Priority Sound: %s",
   "tooltip.ezvcsurvival.sound_reaction": "§a§lSound Reaction:",
-  "tooltip.ezvcsurvival.gunfire_sound": "§6§lGunfire Sound: %s",
-  "tooltip.ezvcsurvival.high_priority": "§f• High Priority: %s",
-  "tooltip.ezvcsurvival.priority_explanation": "§7High priority sounds have greater importance",
   "tooltip.ezvcsurvival.gunfire_reaction": "§a§lGunfire Reaction:"
 }

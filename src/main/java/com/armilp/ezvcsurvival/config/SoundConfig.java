@@ -51,7 +51,7 @@ public class SoundConfig {
         );
         builder.pop();
 
-        builder.push("silenced_guns");
+        builder.push("tacz_silenced_guns");
         SILENCED_GUN_IDS = builder.defineList("ids",
                 () -> List.of(
                         "daffas_arsenal:hk45_sup",
@@ -93,9 +93,15 @@ public class SoundConfig {
             GunfireConfig.init();
             mergeGeneralSoundsFromJson();
             mergeGunfireFromJson();
+            refreshPriorityGroups();
         } catch (Exception e) {
             EZVCSurvival.LOGGER.warn("Error loading JSON sound configs: {}", e.getMessage());
         }
+    }
+
+    private static void refreshPriorityGroups() {
+        priorityGroups.clear();
+        GeneralSoundsConfig.processPrioritySounds(priorityGroups);
     }
 
     private static void mergeGeneralSoundsFromJson() {
@@ -103,7 +109,6 @@ public class SoundConfig {
         if (mobs != null) {
             for (Map.Entry<String, GeneralSoundsConfig.Reaction> e : mobs.entrySet()) {
                 GeneralSoundsConfig.Reaction r = e.getValue();
-                if (r == null || !r.enabled) continue;
                 Map<String, Object> map = new HashMap<>();
                 map.put("speed", r.speed);
                 map.put("range", r.range);
@@ -116,7 +121,6 @@ public class SoundConfig {
         if (sounds != null) {
             for (Map.Entry<String, GeneralSoundsConfig.SoundEntry> e : sounds.entrySet()) {
                 GeneralSoundsConfig.SoundEntry se = e.getValue();
-                if (se == null || !se.enabled) continue;
                 customSoundGroups.add(new SoundGroupData(
                         "auto_sound_" + e.getKey().replace(':', '_').replace('.', '_'),
                         List.of(e.getKey()),
@@ -125,6 +129,7 @@ public class SoundConfig {
                 ));
             }
         }
+        GeneralSoundsConfig.processPrioritySounds(priorityGroups);
     }
 
     private static void mergeGunfireFromJson() {
@@ -132,29 +137,12 @@ public class SoundConfig {
         if (mobs != null) {
             for (Map.Entry<String, GunfireConfig.Reaction> e : mobs.entrySet()) {
                 GunfireConfig.Reaction r = e.getValue();
-                if (r == null || !r.enabled) continue;
+                if (r == null) continue; // Solo continuar si es null, no si está deshabilitado
                 Map<String, Object> map = new HashMap<>();
                 map.put("speed", r.speed);
                 map.put("range", r.range);
+                map.put("enabled", r.enabled);
                 gunfireReactionsMap.put(e.getKey(), map);
-            }
-        }
-
-        Map<String, Boolean> pri = GunfireConfig.getGunPrioritySounds();
-        if (pri != null) {
-            Set<String> existing = new HashSet<>();
-            for (SoundGroupData g : priorityGroups) {
-                if (!g.sounds.isEmpty()) existing.add(g.sounds.get(0));
-            }
-            for (Map.Entry<String, Boolean> e : pri.entrySet()) {
-                if (Boolean.TRUE.equals(e.getValue()) && !existing.contains(e.getKey())) {
-                    priorityGroups.add(new SoundGroupData(
-                            "priority_" + e.getKey().replace(':', '_'),
-                            List.of(e.getKey()),
-                            1.0,
-                            1.0
-                    ));
-                }
             }
         }
     }

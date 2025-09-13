@@ -14,11 +14,11 @@ public class ConfigEditorScreen extends Screen {
     private static final int BUTTON_WIDTH = 120;
     private static final int BUTTON_HEIGHT = 20;
     private static final int BUTTON_SPACING = 20;
-    
+
     private int centerX;
     private int centerY;
     private int startY;
-    
+
     public ConfigEditorScreen() {
         super(Component.translatable("screen.ezvcsurvival.config_editor"));
     }
@@ -30,7 +30,7 @@ public class ConfigEditorScreen extends Screen {
         centerX = this.width / 2;
         centerY = this.height / 2;
 
-        startY = Math.max(centerY - 20, 70);
+        startY = Math.max(centerY - 30, 70);
 
         this.addRenderableWidget(Button.builder(
                 Component.translatable("button.ezvcsurvival.entity_config"),
@@ -70,8 +70,8 @@ public class ConfigEditorScreen extends Screen {
         int subtitleWidth = this.font.width(subtitle);
         int lineY = subtitleY + 12;
         int lineWidth = Math.min(subtitleWidth + 30, this.width - 60);
-        graphics.fill(centerX - lineWidth / 2, lineY, 
-                     centerX + lineWidth / 2, lineY + 1, 0x44FFFFFF);
+        graphics.fill(centerX - lineWidth / 2, lineY,
+                centerX + lineWidth / 2, lineY + 1, 0x44FFFFFF);
 
         Component info = Component.translatable("screen.ezvcsurvival.config_editor.info");
         int infoY = lineY + 15;
@@ -98,7 +98,6 @@ public class ConfigEditorScreen extends Screen {
         super.resize(minecraft, width, height);
         centerX = this.width / 2;
         centerY = this.height / 2;
-        startY = Math.max(centerY - 20, 70);
+        startY = Math.max(centerY - 30, 70);
     }
 }
-
