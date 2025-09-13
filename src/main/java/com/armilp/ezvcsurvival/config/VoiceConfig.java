@@ -18,6 +18,8 @@ public class VoiceConfig {
 
     public static final ForgeConfigSpec.DoubleValue DEATH_ANGELS_THRESHOLD;
 
+    public static final ForgeConfigSpec.BooleanValue MOB_SPEED_BOOST_ENABLED;
+
     public static final ForgeConfigSpec.BooleanValue DEBUG;
 
     static {
@@ -26,6 +28,12 @@ public class VoiceConfig {
                 .push("whisper_configs");
         WHISPER_RANGE_MULTIPLIER = BUILDER.defineInRange("whisper_range_multiplier", 0.5, 0.0, 1.0);
         WHISPER_SPEED_MULTIPLIER = BUILDER.defineInRange("whisper_speed_multiplier", 0.8, 0.0, 1.0);
+        BUILDER.pop();
+
+        BUILDER.comment("Mob Speed Boost Config",
+                        "Enable or disable the mob speed boost when targeting speaking players")
+                .push("mob_speed_boost");
+        MOB_SPEED_BOOST_ENABLED = BUILDER.define("mob_speed_boost_enabled", true);
         BUILDER.pop();
 
         BUILDER.comment("Misc Config",

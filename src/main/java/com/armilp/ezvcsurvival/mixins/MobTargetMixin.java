@@ -35,6 +35,11 @@ public abstract class MobTargetMixin {
             return;
         }
 
+        if (!EntityVoiceConfig.isEnabled() || !VoiceConfig.MOB_SPEED_BOOST_ENABLED.get()) {
+            ezvcsurvival$removeSpeedBoost(mob);
+            return;
+        }
+
         try {
             if (mob.getTarget() instanceof Player targetPlayer) {
                 ezvcsurvival$handleTargetedPlayer(mob, targetPlayer);
