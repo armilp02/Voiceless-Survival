@@ -20,15 +20,20 @@ public class EZVCNetwork {
     }
 
     public static void registerPackets() {
-        INSTANCE.messageBuilder(SoundPlayedPacket.class, nextID())
-                .encoder(SoundPlayedPacket::encode)
-                .decoder(SoundPlayedPacket::decode)
-                .consumerMainThread(SoundPlayedPacket::handle)
+        INSTANCE.messageBuilder(GeneralSoundPacket.class, nextID())
+                .encoder(GeneralSoundPacket::encode)
+                .decoder(GeneralSoundPacket::decode)
+                .consumerMainThread(GeneralSoundPacket::handle)
                 .add();
-        INSTANCE.messageBuilder(PointBlankSoundPacket.class, nextID())
-                .encoder(PointBlankSoundPacket::encode)
-                .decoder(PointBlankSoundPacket::decode)
-                .consumerMainThread(PointBlankSoundPacket::handle)
+        INSTANCE.messageBuilder(OpenConfigEditorPacket.class, nextID())
+                .encoder(OpenConfigEditorPacket::encode)
+                .decoder(OpenConfigEditorPacket::decode)
+                .consumerMainThread(OpenConfigEditorPacket::handle)
+                .add();
+        INSTANCE.messageBuilder(UpdateConfigPacket.class, nextID())
+                .encoder(UpdateConfigPacket::encode)
+                .decoder(UpdateConfigPacket::decode)
+                .consumerMainThread(UpdateConfigPacket::handle)
                 .add();
     }
 }
