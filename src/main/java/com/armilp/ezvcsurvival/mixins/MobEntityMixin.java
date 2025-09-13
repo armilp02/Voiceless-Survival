@@ -102,33 +102,37 @@ public abstract class MobEntityMixin implements IGoalRefresher {
             String mobIdString = mobId.toString();
 
             // FollowVoiceGoal
-            if (!(mob instanceof Animal)) {
-                EntityVoiceConfig.EntityConfig voiceCfg = EntityVoiceConfig.getMonster(mobIdString);
-                if (voiceCfg != null && voiceCfg.enabled) {
-                    double speed = voiceCfg.speed;
-                    double range = voiceCfg.range;
-                    double threshold = voiceCfg.threshold;
+            if (EntityVoiceConfig.isEnabled()) {
+                if (!(mob instanceof Animal)) {
+                    EntityVoiceConfig.EntityConfig voiceCfg = EntityVoiceConfig.getMonster(mobIdString);
+                    if (voiceCfg != null && voiceCfg.enabled) {
+                        double speed = voiceCfg.speed;
+                        double range = voiceCfg.range;
+                        double threshold = voiceCfg.threshold;
 
-                    if (speed > 0 && range > 0) {
-                        FollowVoiceGoal voiceGoal = new FollowVoiceGoal(mob, speed, (int) range, threshold, 10000);
-                        ezvcsurvival$followGoal = voiceGoal;
-                        mob.goalSelector.addGoal(0, voiceGoal);
+                        if (speed > 0 && range > 0) {
+                            FollowVoiceGoal voiceGoal = new FollowVoiceGoal(mob, speed, (int) range, threshold, 10000);
+                            ezvcsurvival$followGoal = voiceGoal;
+                            mob.goalSelector.addGoal(0, voiceGoal);
+                        }
                     }
                 }
             }
 
             // RunawayVoiceGoal
-            if (mob instanceof Animal animal) {
-                EntityVoiceConfig.EntityConfig animalCfg = EntityVoiceConfig.getAnimal(mobIdString);
-                if (animalCfg != null && animalCfg.enabled) {
-                    double speed = animalCfg.speed;
-                    double range = animalCfg.range;
-                    double threshold = animalCfg.threshold;
+            if (EntityVoiceConfig.isEnabled()) {
+                if (mob instanceof Animal animal) {
+                    EntityVoiceConfig.EntityConfig animalCfg = EntityVoiceConfig.getAnimal(mobIdString);
+                    if (animalCfg != null && animalCfg.enabled) {
+                        double speed = animalCfg.speed;
+                        double range = animalCfg.range;
+                        double threshold = animalCfg.threshold;
 
-                    if (speed > 0 && range > 0) {
-                        RunawayVoiceGoal runawayGoal = new RunawayVoiceGoal(animal, speed, (int) range, threshold);
-                        ezvcsurvival$runawayGoal = runawayGoal;
-                        animal.goalSelector.addGoal(4, runawayGoal);
+                        if (speed > 0 && range > 0) {
+                            RunawayVoiceGoal runawayGoal = new RunawayVoiceGoal(animal, speed, (int) range, threshold);
+                            ezvcsurvival$runawayGoal = runawayGoal;
+                            animal.goalSelector.addGoal(4, runawayGoal);
+                        }
                     }
                 }
             }
@@ -158,10 +162,21 @@ public abstract class MobEntityMixin implements IGoalRefresher {
                     double speed = gunfireReaction.speed;
                     double range = gunfireReaction.range;
 
+                    if (VoiceConfig.DEBUG.get()) {
+                        System.out.println("[EZVCSurvival] Applying Gunfire config for " + mobIdString +
+                                ": enabled=" + gunfireReaction.enabled +
+                                ", speed=" + speed +
+                                ", range=" + range);
+                    }
+
                     if (speed > 0 && range > 0) {
                         ReactToGunfireGoal gunGoal = new ReactToGunfireGoal(mob, speed, (int) range);
                         ezvcsurvival$gunfireGoal = gunGoal;
                         mob.goalSelector.addGoal(2, gunGoal);
+                    }
+                } else {
+                    if (VoiceConfig.DEBUG.get()) {
+                        System.out.println("[EZVCSurvival] Gunfire reaction not found or disabled for: " + mobIdString);
                     }
                 }
             }

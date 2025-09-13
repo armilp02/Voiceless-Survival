@@ -2,8 +2,10 @@ package com.armilp.ezvcsurvival.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParseException;
 import com.google.gson.reflect.TypeToken;
 import com.armilp.ezvcsurvival.EZVCSurvival;
+import com.google.gson.stream.MalformedJsonException;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
@@ -28,6 +30,7 @@ public final class EntityVoiceConfig {
 
     private static Map<String, EntityConfig> MONSTER_CONFIGS = new HashMap<>();
     private static Map<String, EntityConfig> ANIMAL_CONFIGS = new HashMap<>();
+    public static RootConfig ROOT = new RootConfig();
 
     private EntityVoiceConfig() {}
 
@@ -35,9 +38,20 @@ public final class EntityVoiceConfig {
         loadOrCreate();
     }
 
-    public static Set<String> getAllEntityIds() { java.util.HashSet<String> all = new java.util.HashSet<>(); all.addAll(MONSTER_CONFIGS.keySet()); all.addAll(ANIMAL_CONFIGS.keySet()); return all; }
-    public static EntityConfig getMonster(String entityId) { return MONSTER_CONFIGS.get(entityId); }
-    public static EntityConfig getAnimal(String entityId) { return ANIMAL_CONFIGS.get(entityId); }
+    public static Set<String> getAllEntityIds() {
+        java.util.HashSet<String> all = new java.util.HashSet<>();
+        all.addAll(MONSTER_CONFIGS.keySet());
+        all.addAll(ANIMAL_CONFIGS.keySet());
+        return all;
+    }
+
+    public static EntityConfig getMonster(String entityId) {
+        return MONSTER_CONFIGS.get(entityId);
+    }
+
+    public static EntityConfig getAnimal(String entityId) {
+        return ANIMAL_CONFIGS.get(entityId);
+    }
 
     public static EntityConfig get(String entityId) {
         EntityConfig ec = MONSTER_CONFIGS.get(entityId);
@@ -46,11 +60,15 @@ public final class EntityVoiceConfig {
     }
 
     public static void set(String entityId, EntityConfig value) {
-        if (MONSTER_CONFIGS.containsKey(entityId)) MONSTER_CONFIGS.put(entityId, value);
-        else ANIMAL_CONFIGS.put(entityId, value);
+        if (MONSTER_CONFIGS.containsKey(entityId))
+            MONSTER_CONFIGS.put(entityId, value);
+        else
+            ANIMAL_CONFIGS.put(entityId, value);
     }
 
-    public static void persist() { save(getConfigPath()); }
+    public static void persist() {
+        save(getConfigPath());
+    }
 
     private static Path getConfigPath() {
         Path configDir = FMLPaths.CONFIGDIR.get().resolve("ezvcsurvival");
@@ -66,20 +84,31 @@ public final class EntityVoiceConfig {
             try (BufferedReader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
                 RootConfig loaded = GSON.fromJson(reader, ROOT_TYPE);
                 if (loaded != null) {
+                    ROOT = loaded;
                     MONSTER_CONFIGS = loaded.monsters != null ? new HashMap<>(loaded.monsters) : new HashMap<>();
                     ANIMAL_CONFIGS = loaded.animals != null ? new HashMap<>(loaded.animals) : new HashMap<>();
                 } else {
+                    ROOT = new RootConfig();
                     MONSTER_CONFIGS = new HashMap<>();
                     ANIMAL_CONFIGS = new HashMap<>();
                 }
+            } catch (JsonParseException | MalformedJsonException e) {
+                EZVCSurvival.LOGGER.warn("Malformed JSON in entities_voices.json, using defaults (no backup): {}", e.getMessage());
+                ROOT = new RootConfig();
+                MONSTER_CONFIGS = new HashMap<>();
+                ANIMAL_CONFIGS = new HashMap<>();
+                generateDefaults();
+                save(path);
             } catch (IOException e) {
                 EZVCSurvival.LOGGER.warn("Error reading entities_voices.json, regenerating: {}", e.getMessage());
+                ROOT = new RootConfig();
                 MONSTER_CONFIGS = new HashMap<>();
                 ANIMAL_CONFIGS = new HashMap<>();
                 generateDefaults();
                 save(path);
             }
         } else {
+            ROOT = new RootConfig();
             generateDefaults();
             save(path);
         }
@@ -90,6 +119,7 @@ public final class EntityVoiceConfig {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private static boolean ensureAllEntitiesPresent() {
         boolean added = false;
         for (EntityType<?> type : BuiltInRegistries.ENTITY_TYPE) {
@@ -111,6 +141,7 @@ public final class EntityVoiceConfig {
         return added;
     }
 
+    @SuppressWarnings("deprecation")
     private static void generateDefaults() {
         MONSTER_CONFIGS.clear();
         ANIMAL_CONFIGS.clear();
@@ -118,9 +149,15 @@ public final class EntityVoiceConfig {
             MobCategory category = type.getCategory();
             if (category == MobCategory.MISC) continue;
             if (isMonsterCategory(category)) {
-                MONSTER_CONFIGS.put(Objects.requireNonNull(BuiltInRegistries.ENTITY_TYPE.getKey(type)).toString(), EntityConfig.defaultFor(type));
+                MONSTER_CONFIGS.put(
+                        Objects.requireNonNull(BuiltInRegistries.ENTITY_TYPE.getKey(type)).toString(),
+                        EntityConfig.defaultFor(type)
+                );
             } else if (isAnimalLikeCategory(category)) {
-                ANIMAL_CONFIGS.put(Objects.requireNonNull(BuiltInRegistries.ENTITY_TYPE.getKey(type)).toString(), EntityConfig.defaultFor(type));
+                ANIMAL_CONFIGS.put(
+                        Objects.requireNonNull(BuiltInRegistries.ENTITY_TYPE.getKey(type)).toString(),
+                        EntityConfig.defaultFor(type)
+                );
             }
         }
 
@@ -129,6 +166,9 @@ public final class EntityVoiceConfig {
         putIfPresent(MONSTER_CONFIGS, "quiet_place:death_angel", new EntityConfig(true, 1.2, 50.0, -10.0));
         putIfPresent(ANIMAL_CONFIGS, "minecraft:cow", new EntityConfig(true, 1.5, 25.0, -18.0));
         putIfPresent(ANIMAL_CONFIGS, "minecraft:pig", new EntityConfig(true, 1.2, 15.0, -18.0));
+
+        activateEntitiesFromMod(MONSTER_CONFIGS, "zombie_extreme", new EntityConfig(true, 1.0, 40.0, -20.0));
+        activateEntitiesFromMod(ANIMAL_CONFIGS, "apocalypsenow", new EntityConfig(true, 1.0, 40.0, -20.0));
     }
 
     private static boolean isMonsterCategory(MobCategory category) {
@@ -149,18 +189,58 @@ public final class EntityVoiceConfig {
         }
     }
 
-    private static void save(Path path) {
-        try {
-            RootConfig root = new RootConfig();
-            root.monsters = MONSTER_CONFIGS;
-            root.animals = ANIMAL_CONFIGS;
-            Path tmp = path.resolveSibling(path.getFileName().toString() + ".tmp");
-            try (BufferedWriter writer = Files.newBufferedWriter(tmp, StandardCharsets.UTF_8)) {
-                GSON.toJson(root, ROOT_TYPE, writer);
+    private static void activateEntitiesFromMod(Map<String, EntityConfig> map, String modId, EntityConfig config) {
+        for (String entityId : map.keySet()) {
+            if (entityId.startsWith(modId + ":")) {
+                map.put(entityId, config);
             }
-            Files.move(tmp, path, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+        }
+    }
+
+    private static void save(Path path) {
+        if (MONSTER_CONFIGS == null || ANIMAL_CONFIGS == null) {
+            EZVCSurvival.LOGGER.warn("Cannot save null configuration maps");
+            return;
+        }
+
+        try {
+            Files.createDirectories(path.getParent());
+
+            if (ROOT == null) {
+                ROOT = new RootConfig();
+            }
+
+            ROOT.monsters = MONSTER_CONFIGS;
+            ROOT.animals = ANIMAL_CONFIGS;
+
+            try (BufferedWriter writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8,
+                    java.nio.file.StandardOpenOption.CREATE,
+                    java.nio.file.StandardOpenOption.WRITE,
+                    java.nio.file.StandardOpenOption.TRUNCATE_EXISTING)) {
+                GSON.toJson(ROOT, ROOT_TYPE, writer);
+                writer.flush();
+            }
+
+            if (com.armilp.ezvcsurvival.config.VoiceConfig.DEBUG.get()) {
+                System.out.println("[EZVCSurvival] Successfully saved entities_voices.json with enabled=" + ROOT.enabled);
+            }
+
         } catch (IOException e) {
-            EZVCSurvival.LOGGER.warn("Could not save entities_voices.json: {}", e.getMessage());
+            EZVCSurvival.LOGGER.error("Failed to save entities_voices.json: {}", e.getMessage());
+        }
+    }
+
+    public static boolean isEnabled() {
+        return ROOT == null || ROOT.enabled;
+    }
+
+    public static void setEnabled(boolean enabled) {
+        if (ROOT == null) ROOT = new RootConfig();
+        ROOT.enabled = enabled;
+        persist();
+
+        if (com.armilp.ezvcsurvival.config.VoiceConfig.DEBUG.get()) {
+            System.out.println("[EZVCSurvival] EntityVoiceConfig setEnabled called: " + enabled);
         }
     }
 
@@ -182,17 +262,16 @@ public final class EntityVoiceConfig {
             double baseRange = 50.0;
             double baseThreshold = -20.0;
 
-            if (type.getCategory() == MobCategory.MONSTER) {
+            if (type != null && type.getCategory() == MobCategory.MONSTER) {
                 baseRange = 60.0;
             }
-            return new EntityConfig(true, baseSpeed, baseRange, baseThreshold);
+            return new EntityConfig(false, baseSpeed, baseRange, baseThreshold);
         }
     }
 
-    private static final class RootConfig {
-        Map<String, EntityConfig> monsters;
-        Map<String, EntityConfig> animals;
+    public static final class RootConfig {
+        public boolean enabled = true;
+        public Map<String, EntityConfig> monsters;
+        public Map<String, EntityConfig> animals;
     }
 }
-
-
