@@ -18,8 +18,6 @@ public class ReactToGunfireGoal extends Goal {
     private final double baseSpeed;
     private final double baseRange;
 
-    public static Vec3 lastPrioritySoundPos = null;
-    public static long lastPrioritySoundTimestamp = 0;
     private static final long PRIORITY_SOUND_DURATION_MS = 3000;
 
     public ReactToGunfireGoal(Mob mob, double speed, double range) {
@@ -34,25 +32,26 @@ public class ReactToGunfireGoal extends Goal {
             return false;
         }
 
-        if (lastPrioritySoundPos != null && System.currentTimeMillis() - lastPrioritySoundTimestamp > PRIORITY_SOUND_DURATION_MS) {
-            lastPrioritySoundPos = null;
+        if (ReactToGeneralSoundGoal.lastPrioritySoundPos != null &&
+                System.currentTimeMillis() - ReactToGeneralSoundGoal.lastPrioritySoundTimestamp > PRIORITY_SOUND_DURATION_MS) {
+            ReactToGeneralSoundGoal.lastPrioritySoundPos = null;
         }
 
         checkForPrioritySounds();
 
         Vec3 mobCenterPos = mob.position();
 
-        if (lastPrioritySoundPos != null) {
+        if (ReactToGeneralSoundGoal.lastPrioritySoundPos != null) {
             double priorityRange = baseRange * 1.5;
             if (mob.level().isRaining() || mob.level().isThundering()) {
                 priorityRange *= SoundConfig.THUNDER_RANGE_MULTIPLIER.get();
             }
-            if (mobCenterPos.distanceTo(lastPrioritySoundPos) <= priorityRange) {
+            if (mobCenterPos.distanceTo(ReactToGeneralSoundGoal.lastPrioritySoundPos) <= priorityRange) {
                 return true;
             }
         }
 
-        if (lastPrioritySoundPos == null) {
+        if (ReactToGeneralSoundGoal.lastPrioritySoundPos == null) {
             double effectiveRange = baseRange;
             String effectiveGunType = null;
 
@@ -92,18 +91,30 @@ public class ReactToGunfireGoal extends Goal {
                 ResourceLocation soundLoc = toLocation(soundStr);
                 Vec3 priorityPos = SoundEventTracker.getLastPlayedPositionForSound(soundLoc);
                 if (priorityPos != null) {
-                    lastPrioritySoundPos = priorityPos;
-                    lastPrioritySoundTimestamp = System.currentTimeMillis();
-                    break;
+                    ReactToGeneralSoundGoal.setPrioritySound(priorityPos);
+                    return;
                 }
             }
-            if (lastPrioritySoundPos != null) break;
+        }
+
+        GunshotData gunshotData = GunFireListener.getLastGunshotData();
+        if (gunshotData != null) {
+            String gunType = gunshotData.gunType.name().toLowerCase();
+            if (isPriorityGunType(gunType)) {
+                ReactToGeneralSoundGoal.setPrioritySound(gunshotData.position);
+            }
         }
     }
 
+    private boolean isPriorityGunType(String gunType) {
+        double rangeMultiplier = SoundConfig.getRangeMultiplier(gunType);
+        return rangeMultiplier >= 6.0;
+    }
+
     private void updateNavigation() {
-        if (lastPrioritySoundPos != null && System.currentTimeMillis() - lastPrioritySoundTimestamp > PRIORITY_SOUND_DURATION_MS) {
-            lastPrioritySoundPos = null;
+        if (ReactToGeneralSoundGoal.lastPrioritySoundPos != null &&
+                System.currentTimeMillis() - ReactToGeneralSoundGoal.lastPrioritySoundTimestamp > PRIORITY_SOUND_DURATION_MS) {
+            ReactToGeneralSoundGoal.lastPrioritySoundPos = null;
         }
 
         checkForPrioritySounds();
@@ -113,7 +124,7 @@ public class ReactToGunfireGoal extends Goal {
         double effectiveRange = baseRange;
         double effectiveSpeed = baseSpeed;
 
-        if (lastPrioritySoundPos != null) {
+        if (ReactToGeneralSoundGoal.lastPrioritySoundPos != null) {
             effectiveRange = baseRange * 1.5;
             effectiveSpeed = baseSpeed * 1.3;
 
@@ -121,25 +132,25 @@ public class ReactToGunfireGoal extends Goal {
                 effectiveRange *= SoundConfig.THUNDER_RANGE_MULTIPLIER.get();
             }
 
-            if (currentPos.distanceTo(lastPrioritySoundPos) <= effectiveRange) {
+            if (currentPos.distanceTo(ReactToGeneralSoundGoal.lastPrioritySoundPos) <= effectiveRange) {
                 if (mob instanceof Monster) {
-                    target = grounded(lastPrioritySoundPos);
+                    target = grounded(ReactToGeneralSoundGoal.lastPrioritySoundPos);
                 } else {
-                    Vec3 directionAway = currentPos.subtract(lastPrioritySoundPos).normalize();
+                    Vec3 directionAway = currentPos.subtract(ReactToGeneralSoundGoal.lastPrioritySoundPos).normalize();
                     target = grounded(currentPos.add(directionAway.scale(effectiveRange)));
                 }
 
                 if (target != null) {
                     mob.getNavigation().moveTo(target.x, target.y, target.z, effectiveSpeed);
-                    if (currentPos.distanceTo(lastPrioritySoundPos) < 2.0) {
-                        lastPrioritySoundPos = null;
+                    if (currentPos.distanceTo(ReactToGeneralSoundGoal.lastPrioritySoundPos) < 2.0) {
+                        ReactToGeneralSoundGoal.lastPrioritySoundPos = null;
                     }
                 }
                 return;
             }
         }
 
-        if (lastPrioritySoundPos == null) {
+        if (ReactToGeneralSoundGoal.lastPrioritySoundPos == null) {
             String effectiveGunType = null;
 
             GunshotData gunshotData = GunFireListener.getLastGunshotData();
@@ -184,8 +195,8 @@ public class ReactToGunfireGoal extends Goal {
 
     private ResourceLocation toLocation(String soundStr) {
         if (soundStr.contains(":")) {
-            return new ResourceLocation(soundStr);
+            return ResourceLocation.parse(soundStr);
         }
-        return new ResourceLocation("minecraft", soundStr);
+        return ResourceLocation.withDefaultNamespace(soundStr);
     }
 }

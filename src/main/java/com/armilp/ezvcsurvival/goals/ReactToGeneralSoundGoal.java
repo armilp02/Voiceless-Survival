@@ -10,9 +10,6 @@ import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -26,7 +23,9 @@ public class ReactToGeneralSoundGoal extends Goal {
     private Vec3 lastAttackerPos = null;
     private static final List<ReactToGeneralSoundGoal> activeGoals = new CopyOnWriteArrayList<>();
 
-    private static final long PRIORITY_SOUND_DURATION_MS = 3000;
+    public static Vec3 lastPrioritySoundPos = null;
+    public static long lastPrioritySoundTimestamp = 0;
+    private static final long PRIORITY_SOUND_DURATION_MS = 3500;
 
     public ReactToGeneralSoundGoal(Mob mob, double speed, double range, List<SoundGroupData> soundGroups) {
         this.mob = mob;
@@ -42,6 +41,11 @@ public class ReactToGeneralSoundGoal extends Goal {
             return false;
         }
 
+        if (lastPrioritySoundPos != null &&
+                System.currentTimeMillis() - lastPrioritySoundTimestamp > PRIORITY_SOUND_DURATION_MS) {
+            lastPrioritySoundPos = null;
+        }
+
         checkForPrioritySounds();
 
         Vec3 mobCenterPos = mob.position();
@@ -50,44 +54,31 @@ public class ReactToGeneralSoundGoal extends Goal {
             effectiveRange *= SoundConfig.THUNDER_RANGE_MULTIPLIER.get();
         }
 
-        if (ReactToGunfireGoal.lastPrioritySoundPos != null) {
-            long timeSincePriority = System.currentTimeMillis() - ReactToGunfireGoal.lastPrioritySoundTimestamp;
-            if (timeSincePriority <= PRIORITY_SOUND_DURATION_MS) {
-                double priorityRange = effectiveRange * 1.5;
-                if (mobCenterPos.distanceTo(ReactToGunfireGoal.lastPrioritySoundPos) <= priorityRange) {
-                    return true;
-                }
+        if (lastPrioritySoundPos != null) {
+            double priorityRange = effectiveRange * 1.5;
+            if (mobCenterPos.distanceTo(lastPrioritySoundPos) <= priorityRange) {
+                return true;
             }
         }
 
-        if (ReactToGunfireGoal.lastPrioritySoundPos == null ||
-                (System.currentTimeMillis() - ReactToGunfireGoal.lastPrioritySoundTimestamp) > PRIORITY_SOUND_DURATION_MS) {
-
-            boolean soundTriggered = false;
-            for (SoundGroupData group : soundGroups) {
-                for (String soundStr : group.sounds) {
-                    ResourceLocation loc = toLocation(soundStr);
-                    Vec3 pos = SoundEventTracker.getLastPlayedPositionForSound(loc);
-                    if (pos != null) {
-                        double grpRange = range * group.rangeMultiplier;
-                        if (mob.level().isRaining() || mob.level().isThundering()) {
-                            grpRange *= SoundConfig.THUNDER_RANGE_MULTIPLIER.get();
-                        }
-                        if (mobCenterPos.distanceTo(pos) <= grpRange) {
-                            soundTriggered = true;
-                            break;
-                        }
+        for (SoundGroupData group : soundGroups) {
+            for (String soundStr : group.sounds) {
+                ResourceLocation loc = toLocation(soundStr);
+                Vec3 pos = SoundEventTracker.getLastPlayedPositionForSound(loc);
+                if (pos != null) {
+                    double grpRange = range * group.rangeMultiplier;
+                    if (mob.level().isRaining() || mob.level().isThundering()) {
+                        grpRange *= SoundConfig.THUNDER_RANGE_MULTIPLIER.get();
+                    }
+                    if (mobCenterPos.distanceTo(pos) <= grpRange) {
+                        return true;
                     }
                 }
-                if (soundTriggered) break;
             }
-
-            boolean hurtTriggered = !(mob instanceof Monster) && lastAttackerPos != null;
-
-            return soundTriggered || hurtTriggered;
         }
 
-        return false;
+        boolean hurtTriggered = !(mob instanceof Monster) && lastAttackerPos != null;
+        return hurtTriggered;
     }
 
     @Override
@@ -112,22 +103,17 @@ public class ReactToGeneralSoundGoal extends Goal {
         activeGoals.remove(this);
     }
 
-    public void onHurt(Vec3 attackerPos) {
-        this.lastAttackerPos = attackerPos;
-    }
-
     private void checkForPrioritySounds() {
         for (SoundGroupData priority : SoundConfig.getPriorityGroups()) {
             for (String soundStr : priority.sounds) {
                 ResourceLocation soundLoc = toLocation(soundStr);
                 Vec3 priorityPos = SoundEventTracker.getLastPlayedPositionForSound(soundLoc);
                 if (priorityPos != null) {
-                    ReactToGunfireGoal.lastPrioritySoundPos = priorityPos;
-                    ReactToGunfireGoal.lastPrioritySoundTimestamp = System.currentTimeMillis();
-                    break;
+                    lastPrioritySoundPos = priorityPos;
+                    lastPrioritySoundTimestamp = System.currentTimeMillis();
+                    return;
                 }
             }
-            if (ReactToGunfireGoal.lastPrioritySoundPos != null) break;
         }
     }
 
@@ -136,16 +122,16 @@ public class ReactToGeneralSoundGoal extends Goal {
             return;
         }
 
-        checkForPrioritySounds();
-
-        if (ReactToGunfireGoal.lastPrioritySoundPos != null &&
-                System.currentTimeMillis() - ReactToGunfireGoal.lastPrioritySoundTimestamp > PRIORITY_SOUND_DURATION_MS) {
-            ReactToGunfireGoal.lastPrioritySoundPos = null;
+        if (lastPrioritySoundPos != null &&
+                System.currentTimeMillis() - lastPrioritySoundTimestamp > PRIORITY_SOUND_DURATION_MS) {
+            lastPrioritySoundPos = null;
         }
+
+        checkForPrioritySounds();
 
         Vec3 currentPos = mob.position();
 
-        if (ReactToGunfireGoal.lastPrioritySoundPos != null) {
+        if (lastPrioritySoundPos != null) {
             double priorityRange = range * 1.5;
             double prioritySpeed = speed * 1.3;
 
@@ -153,29 +139,29 @@ public class ReactToGeneralSoundGoal extends Goal {
                 priorityRange *= SoundConfig.THUNDER_RANGE_MULTIPLIER.get();
             }
 
-            if (currentPos.distanceTo(ReactToGunfireGoal.lastPrioritySoundPos) <= priorityRange) {
+            if (currentPos.distanceTo(lastPrioritySoundPos) <= priorityRange) {
                 Vec3 target;
                 if (mob instanceof Monster) {
-                    target = grounded(ReactToGunfireGoal.lastPrioritySoundPos);
+                    target = grounded(lastPrioritySoundPos);
                 } else {
-                    Vec3 directionAway = currentPos.subtract(ReactToGunfireGoal.lastPrioritySoundPos).normalize();
+                    Vec3 directionAway = currentPos.subtract(lastPrioritySoundPos).normalize();
                     target = grounded(currentPos.add(directionAway.scale(priorityRange)));
                 }
 
-                if (currentPos.distanceTo(ReactToGunfireGoal.lastPrioritySoundPos) > 50.0) {
-                    mob.getNavigation().moveTo(target.x, target.y, target.z, prioritySpeed * 0.8); // Velocidad reducida para mejor pathfinding
+                if (currentPos.distanceTo(lastPrioritySoundPos) > 50.0) {
+                    mob.getNavigation().moveTo(target.x, target.y, target.z, prioritySpeed * 0.8);
                 } else {
                     mob.getNavigation().moveTo(target.x, target.y, target.z, prioritySpeed);
                 }
 
-                if (currentPos.distanceTo(ReactToGunfireGoal.lastPrioritySoundPos) < 2.0) {
-                    ReactToGunfireGoal.lastPrioritySoundPos = null;
+                if (currentPos.distanceTo(lastPrioritySoundPos) < 2.0) {
+                    lastPrioritySoundPos = null;
                 }
                 return;
             }
         }
 
-        if (ReactToGunfireGoal.lastPrioritySoundPos == null) {
+        if (lastPrioritySoundPos == null) {
             for (SoundGroupData group : soundGroups) {
                 for (String soundStr : group.sounds) {
                     ResourceLocation loc = toLocation(soundStr);
@@ -221,9 +207,9 @@ public class ReactToGeneralSoundGoal extends Goal {
 
     private ResourceLocation toLocation(String soundStr) {
         if (soundStr.contains(":")) {
-            return new ResourceLocation(soundStr);
+            return ResourceLocation.parse(soundStr);
         }
-        return new ResourceLocation("minecraft", soundStr);
+        return ResourceLocation.withDefaultNamespace(soundStr);
     }
 
     private Vec3 grounded(Vec3 desiredXZ) {
@@ -233,8 +219,8 @@ public class ReactToGeneralSoundGoal extends Goal {
     }
 
     private Vec3 getCurrentTargetPosition() {
-        if (ReactToGunfireGoal.lastPrioritySoundPos != null) {
-            return ReactToGunfireGoal.lastPrioritySoundPos;
+        if (lastPrioritySoundPos != null) {
+            return lastPrioritySoundPos;
         }
 
         for (SoundGroupData group : soundGroups) {
@@ -254,5 +240,10 @@ public class ReactToGeneralSoundGoal extends Goal {
         }
 
         return null;
+    }
+
+    public static void setPrioritySound(Vec3 position) {
+        lastPrioritySoundPos = position;
+        lastPrioritySoundTimestamp = System.currentTimeMillis();
     }
 }
