@@ -1,24 +1,26 @@
-package com.armilp.ezvcsurvival.events;
+package com.armilp.ezvcsurvival.compat.tacz;
 
+import com.armilp.ezvcsurvival.config.SoundConfig;
 import com.armilp.ezvcsurvival.data.GunshotData;
+import com.tacz.guns.api.entity.IGunOperator;
 import com.tacz.guns.api.event.common.GunFireEvent;
 import com.tacz.guns.api.item.GunTabType;
 import com.tacz.guns.api.item.IGun;
-import com.tacz.guns.api.entity.IGunOperator;
 import com.tacz.guns.resource.index.CommonGunIndex;
-import com.tacz.guns.resource.modifier.custom.SilenceModifier;
 import com.tacz.guns.resource.modifier.AttachmentCacheProperty;
+import com.tacz.guns.resource.modifier.custom.SilenceModifier;
 import it.unimi.dsi.fastutil.Pair;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class GunFireListener {
 
@@ -31,7 +33,7 @@ public class GunFireListener {
         IGun gun = IGun.getIGunOrNull(gunStack);
 
         LivingEntity shooter = event.getShooter();
-        if (shooter != null && useSilenceSound(shooter)) {
+        if (shooter != null && useSilenceSound(shooter, gunStack)) {
             return;
         }
         if (shooter == null) return;
@@ -67,14 +69,26 @@ public class GunFireListener {
                 gunType = GunTabType.PISTOL;
             }
         }
+
         gunshotPositions.add(new GunshotData(shooterPos, System.currentTimeMillis(), gunType));
     }
 
-    private static boolean useSilenceSound(LivingEntity player) {
-        AttachmentCacheProperty cacheProperty = IGunOperator.fromLivingEntity(player).getCacheProperty();
-        if (cacheProperty != null) {
-            Pair<Integer, Boolean> silence = cacheProperty.getCache(SilenceModifier.ID);
-            return silence.right();
+    private static boolean useSilenceSound(LivingEntity entity, ItemStack gunStack) {
+
+        IGunOperator operator = IGunOperator.fromLivingEntity(entity);
+        if (operator != null) {
+            AttachmentCacheProperty cacheProperty = operator.getCacheProperty();
+            if (cacheProperty != null) {
+                Pair<Integer, Boolean> silence = cacheProperty.getCache(SilenceModifier.ID);
+                if (silence != null && silence.right()) return true;
+            }
+        }
+        IGun gun = IGun.getIGunOrNull(gunStack);
+        if (gun != null) {
+            ResourceLocation gunId = gun.getGunId(gunStack);
+            if (SoundConfig.isSilencedGun(gunId)) {
+                return true;
+            }
         }
         return false;
     }
