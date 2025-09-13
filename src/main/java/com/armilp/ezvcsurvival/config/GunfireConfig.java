@@ -4,12 +4,12 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import com.armilp.ezvcsurvival.EZVCSurvival;
+import com.google.gson.stream.MalformedJsonException;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraftforge.fml.loading.FMLPaths;
 
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -34,12 +34,7 @@ public final class GunfireConfig {
         if (ROOT.mobs == null) ROOT.mobs = new HashMap<>();
         return ROOT.mobs;
     }
-    public static Map<String, Boolean> getGunPrioritySounds() {
-        if (ROOT == null) ROOT = new Root();
-        if (ROOT.priority_sounds == null) ROOT.priority_sounds = new HashMap<>();
-        return ROOT.priority_sounds;
-    }
-    public static boolean isEnabled() { return ROOT != null ? ROOT.enabled : true; }
+    public static boolean isEnabled() { return ROOT == null || ROOT.enabled; }
 
     private static Path getPath() {
         Path dir = FMLPaths.CONFIGDIR.get().resolve("ezvcsurvival");
@@ -50,9 +45,16 @@ public final class GunfireConfig {
     private static void loadOrCreate() {
         Path path = getPath();
         if (Files.exists(path)) {
-            try (BufferedReader r = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
-                Root loaded = GSON.fromJson(r, ROOT_TYPE);
-                ROOT = loaded != null ? loaded : defaultRoot();
+            try {
+                String content = Files.readString(path, StandardCharsets.UTF_8);
+                try (java.io.StringReader r = new java.io.StringReader(content)) {
+                    Root loaded = GSON.fromJson(r, ROOT_TYPE);
+                    ROOT = loaded != null ? loaded : defaultRoot();
+                }
+            } catch (MalformedJsonException e) {
+                EZVCSurvival.LOGGER.warn("Malformed JSON in gunfire.json, using defaults (no backup): {}", e.getMessage());
+                ROOT = defaultRoot();
+                save(path);
             } catch (IOException e) {
                 EZVCSurvival.LOGGER.warn("Error reading gunfire.json, regenerating: {}", e.getMessage());
                 ROOT = defaultRoot();
@@ -67,48 +69,78 @@ public final class GunfireConfig {
         if (changed) save(path);
     }
 
+    @SuppressWarnings("deprecation")
     private static boolean ensureAllPresent() {
         boolean changed = false;
         if (ROOT.mobs == null) { ROOT.mobs = new HashMap<>(); changed = true; }
-        if (ROOT.priority_sounds == null) { ROOT.priority_sounds = new HashMap<>(); changed = true; }
 
         for (EntityType<?> type : BuiltInRegistries.ENTITY_TYPE) {
             MobCategory cat = type.getCategory();
             if (cat == MobCategory.MISC) continue;
             String id = Objects.requireNonNull(BuiltInRegistries.ENTITY_TYPE.getKey(type)).toString();
             if (!ROOT.mobs.containsKey(id)) {
-                ROOT.mobs.put(id, new Reaction(true, 1.0, cat == MobCategory.MONSTER ? 50.0 : 40.0));
+                ROOT.mobs.put(id, new Reaction(false, 1.0, cat == MobCategory.MONSTER ? 50.0 : 40.0));
                 changed = true;
             }
         }
 
-        for (var sound : BuiltInRegistries.SOUND_EVENT) {
-            String id = Objects.requireNonNull(BuiltInRegistries.SOUND_EVENT.getKey(sound)).toString();
-            if (!ROOT.priority_sounds.containsKey(id)) {
-                boolean isExplosion = id.equals("minecraft:entity.generic.explode");
-                ROOT.priority_sounds.put(id, isExplosion);
-                changed = true;
+        updateIfDefault(ROOT.mobs, "minecraft:zombie", new Reaction(true, 1.0, 50.0));
+        updateIfDefault(ROOT.mobs, "minecraft:skeleton", new Reaction(true, 1.0, 50.0));
+        updateIfDefault(ROOT.mobs, "minecraft:cow", new Reaction(true, 1.0, 40.0));
+        updateIfDefault(ROOT.mobs, "minecraft:pig", new Reaction(true, 1.0, 40.0));
+
+        activateEntitiesFromMod(ROOT.mobs, "zombie_extreme", new Reaction(true, 1.0, 50.0));
+        activateEntitiesFromMod(ROOT.mobs, "apocalypsenow", new Reaction(true, 1.0, 50.0));
+
+        return changed;
+    }
+
+    private static void updateIfDefault(Map<String, Reaction> map, String id, Reaction newReaction) {
+        if (map.containsKey(id)) {
+            Reaction current = map.get(id);
+            if (current.speed == 1.0 && (current.range == 40.0 || current.range == 50.0)) {
+                map.put(id, newReaction);
             }
         }
-        return changed;
+    }
+
+    private static void activateEntitiesFromMod(Map<String, Reaction> map, String modId, Reaction reaction) {
+        for (String entityId : map.keySet()) {
+            if (entityId.startsWith(modId + ":")) {
+                map.put(entityId, reaction);
+            }
+        }
     }
 
     private static Root defaultRoot() {
         Root r = new Root();
         r.mobs = new HashMap<>();
-        r.priority_sounds = new HashMap<>();
         return r;
     }
 
     private static void save(Path path) {
+        if (ROOT == null) {
+            EZVCSurvival.LOGGER.warn("Cannot save null ROOT configuration");
+            return;
+        }
+
         try {
-            Path tmp = path.resolveSibling(path.getFileName().toString() + ".tmp");
-            try (BufferedWriter w = Files.newBufferedWriter(tmp, StandardCharsets.UTF_8)) {
+            Files.createDirectories(path.getParent());
+
+            try (BufferedWriter w = Files.newBufferedWriter(path, StandardCharsets.UTF_8,
+                    java.nio.file.StandardOpenOption.CREATE,
+                    java.nio.file.StandardOpenOption.WRITE,
+                    java.nio.file.StandardOpenOption.TRUNCATE_EXISTING)) {
                 GSON.toJson(ROOT, ROOT_TYPE, w);
+                w.flush();
             }
-            Files.move(tmp, path, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+
+            if (VoiceConfig.DEBUG.get()) {
+                System.out.println("[EZVCSurvival] Successfully saved gunfire.json");
+            }
+
         } catch (IOException e) {
-            EZVCSurvival.LOGGER.warn("Could not save gunfire.json: {}", e.getMessage());
+            EZVCSurvival.LOGGER.error("Failed to save gunfire.json: {}", e.getMessage());
         }
     }
 
@@ -116,17 +148,12 @@ public final class GunfireConfig {
         if (ROOT.mobs == null) ROOT.mobs = new HashMap<>();
         ROOT.mobs.put(entityId, new Reaction(enabled, speed, range));
     }
-    public static void setPrioritySound(String soundId, boolean enabled) {
-        if (ROOT.priority_sounds == null) ROOT.priority_sounds = new HashMap<>();
-        ROOT.priority_sounds.put(soundId, enabled);
-    }
     public static void persist() { save(getPath()); }
 
 
     public static final class Root {
         public boolean enabled = true;
         public Map<String, Reaction> mobs;
-        public Map<String, Boolean> priority_sounds;
     }
 
     public static final class Reaction {
