@@ -46,25 +46,39 @@ public class MobGoalInjector {
         }
     }
 
-    public static void refreshAllInLevel(Level level) {
-        if (level.isClientSide) return;
+
+    public static void refreshAll() {
         Iterator<Mob> it = TRACKED_MOBS.iterator();
         while (it.hasNext()) {
             Mob mob = it.next();
-            if (mob.isRemoved() || mob.level() != level) {
+            if (mob.isRemoved()) {
                 it.remove();
                 continue;
             }
-            CompoundTag data = mob.getPersistentData();
-            data.remove(TAG);
-            removeOldGoals(mob);
-            try {
-                injectGoals(mob);
-                data.putBoolean(TAG, true);
-            } catch (Exception e) {
-                if (VoiceConfig.DEBUG.get()) {
-                    System.err.println("[EZVCSurvival] Error al refrescar goals: " + e.getMessage());
-                }
+            refreshMob(mob);
+        }
+    }
+
+    public static void refreshEntityId(String entityId) {
+        for (Mob mob : TRACKED_MOBS) {
+            if (mob.isRemoved()) continue;
+            ResourceLocation id = ForgeRegistries.ENTITY_TYPES.getKey(mob.getType());
+            if (id != null && id.toString().equals(entityId)) {
+                refreshMob(mob);
+            }
+        }
+    }
+
+    private static void refreshMob(Mob mob) {
+        CompoundTag data = mob.getPersistentData();
+        data.remove(TAG);
+        removeOldGoals(mob);
+        try {
+            injectGoals(mob);
+            data.putBoolean(TAG, true);
+        } catch (Exception e) {
+            if (VoiceConfig.DEBUG.get()) {
+                System.err.println("[EZVCSurvival] Error al refrescar goals: " + e.getMessage());
             }
         }
     }
