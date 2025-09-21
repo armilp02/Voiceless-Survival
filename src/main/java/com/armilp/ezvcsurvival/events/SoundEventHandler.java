@@ -1,24 +1,19 @@
 package com.armilp.ezvcsurvival.events;
 
-import com.armilp.ezvcsurvival.config.SoundConfig;
+import com.armilp.ezvcsurvival.config.GeneralSoundsConfig;
+import com.armilp.ezvcsurvival.network.EZVCNetwork;
+import com.armilp.ezvcsurvival.network.GeneralSoundPacket;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.sound.PlaySoundEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-
-import java.util.ArrayList;
-import java.util.List;
+import net.minecraftforge.network.PacketDistributor;
 
 @Mod.EventBusSubscriber(modid = "ezvcsurvival", value = Dist.CLIENT)
 public class SoundEventHandler {
-
-    private static final List<String> bannedSubstrings = new ArrayList<>(
-            List.of("_s", "_magin", "_magout", "_reload", "_draw", "draw",
-                    "_open", "_close", "hit", "_slide", "added", "removed", "_unload", "_load"));
-
 
     @SubscribeEvent
     public static void onPlaySound(PlaySoundEvent event) {
@@ -26,18 +21,28 @@ public class SoundEventHandler {
             return;
         }
 
-        Vec3 position = new Vec3(sound.getX(), sound.getY(), sound.getZ());
-        ResourceLocation soundId = sound.getLocation();
-        SoundEventTracker.registerSound(soundId, position);
-
-        if ("pointblank".equals(soundId.getNamespace())) {
-            String soundString = soundId.toString();
-            for (String banned : bannedSubstrings) {
-                if (soundString.contains(banned)) {
-                    return;
-                }
-            }
-            SoundConfig.registerPointblankSound(soundString);
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getConnection() == null || mc.player == null) {
+            return;
         }
+
+        var soundMap = GeneralSoundsConfig.getSounds();
+        if (soundMap == null) {
+            return;
+        }
+
+        GeneralSoundsConfig.SoundEntry cfg = soundMap.get(sound.getLocation().toString());
+        if (cfg == null || !cfg.enabled) {
+            return;
+        }
+
+        EZVCNetwork.INSTANCE.send(new GeneralSoundPacket(
+                sound.getLocation(),
+                sound.getX(),
+                sound.getY(),
+                sound.getZ(),
+                cfg.speed_multiplier,
+                cfg.range_multiplier
+        ), PacketDistributor.SERVER.noArg());
     }
 }

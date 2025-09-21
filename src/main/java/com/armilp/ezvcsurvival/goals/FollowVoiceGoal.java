@@ -5,6 +5,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.levelgen.Heightmap;
 
 import java.util.EnumSet;
 
@@ -25,7 +26,7 @@ public class FollowVoiceGoal extends Goal {
         this.voiceDetectionRange = detectionRange;
         this.threshold = threshold;
         this.maxFollowTime = maxFollowTime;
-        this.setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.TARGET));
+        this.setFlags(EnumSet.of(Flag.MOVE, Flag.TARGET));
     }
 
     @Override
@@ -33,8 +34,9 @@ public class FollowVoiceGoal extends Goal {
         if (mob.getTarget() != null) {
             return false;
         }
+
         targetPlayer = getNearestPlayerInRange();
-        targetSoundPosition = Plugin.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange);
+        targetSoundPosition = Plugin.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange, threshold);
         return targetPlayer != null || targetSoundPosition != null;
     }
 
@@ -58,7 +60,6 @@ public class FollowVoiceGoal extends Goal {
     @Override
     public void tick() {
         if (targetPlayer != null) {
-            // Si hay un jugador, dejamos de atender sonidos
             targetSoundPosition = null;
             handlePlayerInteraction();
         } else if (targetSoundPosition != null) {
@@ -74,7 +75,7 @@ public class FollowVoiceGoal extends Goal {
     }
 
     private void handlePlayerInteraction() {
-        if (targetPlayer.isCreative()) {
+        if (targetPlayer.isCreative() || targetPlayer.isSpectator()) {
             targetPlayer = null;
             mob.getNavigation().stop();
             return;
@@ -95,10 +96,14 @@ public class FollowVoiceGoal extends Goal {
     }
 
     private void handleSoundInteraction() {
-        double distanceToTarget = mob.blockPosition().distSqr(targetSoundPosition);
+        BlockPos groundedPos = mob.level().getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, targetSoundPosition);
+        double dx = (mob.getX() - (groundedPos.getX() + 0.5));
+        double dz = (mob.getZ() - (groundedPos.getZ() + 0.5));
+        double distanceSq = dx * dx + dz * dz;
+        double arrivalThresholdSq = this.threshold * this.threshold;
 
-        if (distanceToTarget <= 1.5 * 1.5) {
-            targetSoundPosition = Plugin.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange);
+        if (distanceSq <= arrivalThresholdSq) {
+            targetSoundPosition = Plugin.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange, threshold);
             if (targetSoundPosition != null) {
                 moveToSoundPosition();
             } else {
@@ -107,8 +112,8 @@ public class FollowVoiceGoal extends Goal {
             return;
         }
 
-        if (distanceToTarget > (double) (voiceDetectionRange * voiceDetectionRange) / 2) {
-            BlockPos newSoundPosition = Plugin.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange);
+        if (distanceSq > (voiceDetectionRange * voiceDetectionRange) / 2.0) {
+            BlockPos newSoundPosition = Plugin.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange, threshold);
             if (newSoundPosition == null) {
                 targetSoundPosition = null;
                 mob.getNavigation().stop();
@@ -118,9 +123,7 @@ public class FollowVoiceGoal extends Goal {
                 moveToSoundPosition();
             }
         }
-
-        double soundSpeed = Plugin.getLastSoundSpeed(mob.blockPosition(), voiceDetectionRange);
-        mob.getNavigation().setSpeedModifier(soundSpeed);
+        mob.getNavigation().setSpeedModifier(speedModifier);
     }
 
     private Player getNearestPlayerInRange() {
@@ -129,10 +132,11 @@ public class FollowVoiceGoal extends Goal {
 
     private void moveToSoundPosition() {
         if (targetSoundPosition != null) {
+            BlockPos ground = mob.level().getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, targetSoundPosition);
             mob.getNavigation().moveTo(
-                    targetSoundPosition.getX() + 0.5,
-                    targetSoundPosition.getY(),
-                    targetSoundPosition.getZ() + 0.5,
+                    ground.getX() + 0.5,
+                    ground.getY(),
+                    ground.getZ() + 0.5,
                     speedModifier
             );
         }

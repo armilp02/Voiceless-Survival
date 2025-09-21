@@ -4,216 +4,88 @@ import com.armilp.ezvcsurvival.EZVCSurvival;
 import com.armilp.ezvcsurvival.data.SoundGroupData;
 import net.minecraftforge.common.ForgeConfigSpec;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.event.config.ModConfigEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.event.config.ModConfigEvent;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 @Mod.EventBusSubscriber(modid = EZVCSurvival.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD)
 public class SoundConfig {
 
-    public static final ForgeConfigSpec.ConfigValue<List<? extends String>> SOUND_GROUPS;
-    public static final ForgeConfigSpec.ConfigValue<List<? extends String>> MOB_SOUND_REACTIONS;
+    public static final ForgeConfigSpec.DoubleValue THUNDER_RANGE_MULTIPLIER;
 
-    private static final Map<String, SoundGroupData> soundGroupDataMap = new HashMap<>();
-    private static final Map<String, Map<String, Object>> mobReactionsMap = new HashMap<>();
+    private static final List<SoundGroupData> priorityGroups = new ArrayList<>();
+    private static final List<SoundGroupData> customSoundGroups = new ArrayList<>();
 
     public static final ForgeConfigSpec SPEC;
-
-    // Grupo interno para sonidos de pointblank (no se expone en la configuración)
-    private static final String INTERNAL_POINTBLANK_GROUP = "pointblank_internal";
 
     static {
         ForgeConfigSpec.Builder builder = new ForgeConfigSpec.Builder();
 
-        builder.comment("Sound groups configuration",
-                "Define reusable sound groups for mobs.",
-                "Format: group_name=sound1,sound2,sound3[,speedMultiplier,rangeMultiplier]",
-                "or: group_name=speed=VAL,range=VAL,sound1,sound2,...");
-        builder.push("sound_groups");
-        SOUND_GROUPS = builder.defineList("groups",
-                () -> List.of(
-                        "wood_sounds=block.wood.break,block.wood.hit,block.wood.place,1.0,1.0",
-                        "animal_hurts=entity.cow.hurt,entity.pig.hurt"
-                ),
-                obj -> obj instanceof String && ((String) obj).contains("=")
-        );
-        builder.pop();
-
-        builder.comment("Mob sound reactions configuration",
-                "Define sound reaction settings for each mob.",
-                "Format: mob_id=speed=VALUE,range=VALUE,groups=group1,group2");
-        builder.push("mob_sound_reactions");
-        MOB_SOUND_REACTIONS = builder.defineList("reactions",
-                () -> List.of(
-                        "minecraft:zombie=speed=1.5,range=20,groups=wood_sounds",
-                        "minecraft:cow=speed=1.8,range=16,groups=animal_hurts"
-                ),
-                obj -> obj instanceof String && ((String) obj).contains("=")
-        );
+        builder.push("weather");
+        THUNDER_RANGE_MULTIPLIER = builder.defineInRange("thunder_range_multiplier", 0.8, 0.0, 1.0);
         builder.pop();
 
         SPEC = builder.build();
     }
 
     @SubscribeEvent
-    public static void onModConfigReload(ModConfigEvent.Reloading event) {
+    public static void onModConfigLoading(ModConfigEvent.Loading event) {
         if (event.getConfig().getSpec() == SPEC) {
-            EZVCSurvival.LOGGER.info("Recargando la configuración de EZVCSurvival...");
+            EZVCSurvival.LOGGER.info("Loading EZVCSurvival configuration...");
+            loadConfigs();
+        }
+    }
+
+    @SubscribeEvent
+    public static void onModConfigReloading(ModConfigEvent.Reloading event) {
+        if (event.getConfig().getSpec() == SPEC) {
+            EZVCSurvival.LOGGER.info("Reloading EZVCSurvival configuration...");
             loadConfigs();
         }
     }
 
     public static void loadConfigs() {
-        loadSoundGroups();
-        loadMobSoundReactions();
-        soundGroupDataMap.computeIfAbsent(INTERNAL_POINTBLANK_GROUP,
-                i -> new SoundGroupData(INTERNAL_POINTBLANK_GROUP, new ArrayList<>(), 1.0, 1.0));
-    }
-
-    private static void loadSoundGroups() {
-        soundGroupDataMap.clear();
-        List<? extends String> groups = SOUND_GROUPS.get();
-        if (groups == null || groups.isEmpty()) {
-            groups = List.of(
-                    "wood_sounds=block.wood.break,block.wood.hit,block.wood.place,1.0,1.0",
-                    "animal_hurts=entity.cow.hurt,entity.pig.hurt"
-            );
-        }
-        for (String entry : groups) {
-            String[] parts = entry.split("=", 2);
-            if (parts.length < 2) {
-                EZVCSurvival.LOGGER.warn("Entrada de grupo de sonido inválida: " + entry);
-                continue;
-            }
-            String groupName = parts[0].trim();
-            List<String> tokens = Arrays.stream(parts[1].split(","))
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty())
-                    .collect(Collectors.toList());
-            double speedMult = 1.0;
-            double rangeMult = 1.0;
-            if (!tokens.isEmpty() && tokens.get(0).toLowerCase().startsWith("speed=")) {
-                try {
-                    speedMult = Double.parseDouble(tokens.get(0).substring(6));
-                    if (tokens.size() > 1 && tokens.get(1).toLowerCase().startsWith("range=")) {
-                        rangeMult = Double.parseDouble(tokens.get(1).substring(6));
-                        tokens = tokens.subList(2, tokens.size());
-                    }
-                } catch (NumberFormatException e) {
-                    EZVCSurvival.LOGGER.warn("Error al parsear multiplicadores en la entrada: " + entry);
-                }
-            } else if (tokens.size() >= 3) {
-                try {
-                    speedMult = Double.parseDouble(tokens.get(tokens.size() - 2));
-                    rangeMult = Double.parseDouble(tokens.get(tokens.size() - 1));
-                    tokens = tokens.subList(0, tokens.size() - 2);
-                } catch (NumberFormatException e) {
-                    EZVCSurvival.LOGGER.warn("Error al parsear multiplicadores en la entrada: " + entry);
-                }
-            }
-            if (tokens.isEmpty()) {
-                EZVCSurvival.LOGGER.warn("No se definieron sonidos para el grupo: " + groupName);
-                continue;
-            }
-            SoundGroupData data = new SoundGroupData(groupName, tokens, speedMult, rangeMult);
-            soundGroupDataMap.put(groupName, data);
-        }
-    }
-
-    private static void loadMobSoundReactions() {
-        mobReactionsMap.clear();
-        List<? extends String> reactions = MOB_SOUND_REACTIONS.get();
-        if (reactions == null || reactions.isEmpty()) {
-            reactions = List.of(
-                    "minecraft:zombie=speed=1.5,range=20,groups=wood_sounds",
-                    "minecraft:cow=speed=1.8,range=16,groups=animal_hurts"
-            );
-        }
-        for (String entry : reactions) {
-            String[] parts = entry.split("=", 2);
-            if (parts.length < 2) {
-                EZVCSurvival.LOGGER.warn("Entrada de reacción para mob inválida: " + entry);
-                continue;
-            }
-            String mobId = parts[0].trim();
-            String params = parts[1].trim();
-            Map<String, Object> map = new HashMap<>();
-            int groupsIndex = params.indexOf("groups=");
-            if (groupsIndex != -1) {
-                String before = params.substring(0, groupsIndex);
-                String after = params.substring(groupsIndex + 7);
-                for (String token : before.split(",")) {
-                    if (token.contains("=")) {
-                        String[] kv = token.split("=", 2);
-                        map.put(kv[0].trim(), tryParse(kv[1].trim()));
-                    }
-                }
-                List<String> groupList = Arrays.stream(after.split(","))
-                        .map(String::trim)
-                        .filter(s -> !s.isEmpty())
-                        .collect(Collectors.toList());
-                map.put("groups", groupList);
-            } else {
-                for (String token : params.split(",")) {
-                    if (token.contains("=")) {
-                        String[] kv = token.split("=", 2);
-                        map.put(kv[0].trim(), tryParse(kv[1].trim()));
-                    }
-                }
-            }
-            if (map.isEmpty()) {
-                EZVCSurvival.LOGGER.warn("No se definió una reacción válida para el mob: " + mobId);
-            } else {
-                mobReactionsMap.put(mobId, map);
-            }
-        }
-    }
-
-    private static Object tryParse(String s) {
         try {
-            return Double.parseDouble(s);
-        } catch (NumberFormatException e) {
-            return s;
+            // Solo inicializamos configuración de sonidos generales
+            GeneralSoundsConfig.init();
+            mergeGeneralSoundsFromJson();
+            refreshPriorityGroups();
+        } catch (Exception e) {
+            EZVCSurvival.LOGGER.warn("Error loading JSON sound configs: {}", e.getMessage());
         }
     }
 
-    // Registra internamente un sonido pointblank en el grupo interno
-    public static void registerPointblankSound(String soundLocation) {
-        SoundGroupData group = soundGroupDataMap.computeIfAbsent(INTERNAL_POINTBLANK_GROUP,
-                i -> new SoundGroupData(i, new ArrayList<>(), 1.2, 1.5));
-        if (!group.getSoundList().contains(soundLocation)) {
-            group.getSoundList().add(soundLocation);
-        }
+    private static void refreshPriorityGroups() {
+        priorityGroups.clear();
+        GeneralSoundsConfig.processPrioritySounds(priorityGroups);
     }
 
-    // Al obtener los grupos de sonido para un mob, se añaden los definidos en la configuración
-    // y, de forma interna, se agrega el grupo de pointblank si tiene sonidos registrados.
-    public static List<SoundGroupData> getSoundGroupsForMob(String mobId) {
-        List<SoundGroupData> list = new ArrayList<>();
-        Map<String, Object> reaction = mobReactionsMap.get(mobId);
-        if (reaction != null && reaction.containsKey("groups")) {
-            @SuppressWarnings("unchecked")
-            List<String> groups = (List<String>) reaction.get("groups");
-            for (String group : groups) {
-                SoundGroupData data = soundGroupDataMap.get(group);
-                if (data != null) {
-                    list.add(data);
-                } else {
-                    EZVCSurvival.LOGGER.warn("No se encontró el grupo: " + group + " para el mob: " + mobId);
-                }
+    private static void mergeGeneralSoundsFromJson() {
+        customSoundGroups.removeIf(g -> g.groupName.startsWith("auto_sound_"));
+
+        Map<String, GeneralSoundsConfig.SoundEntry> sounds = GeneralSoundsConfig.getSounds();
+        if (sounds != null) {
+            for (Map.Entry<String, GeneralSoundsConfig.SoundEntry> e : sounds.entrySet()) {
+                GeneralSoundsConfig.SoundEntry se = e.getValue();
+                customSoundGroups.add(new SoundGroupData(
+                        "auto_sound_" + e.getKey().replace(':', '_').replace('.', '_'),
+                        List.of(e.getKey()),
+                        se.speed_multiplier,
+                        se.range_multiplier
+                ));
             }
         }
-        // Independientemente del mob, si el grupo interno tiene sonidos registrados se añade
-        SoundGroupData internalGroup = soundGroupDataMap.get(INTERNAL_POINTBLANK_GROUP);
-        if (internalGroup != null && !internalGroup.getSoundList().isEmpty() && !list.contains(internalGroup)) {
-            list.add(internalGroup);
-        }
-        return list;
     }
 
-    public static Map<String, Object> getMobSoundReaction(String mobId) {
-        return mobReactionsMap.get(mobId);
+    public static List<SoundGroupData> getEnabledSoundGroups() {
+        return Collections.unmodifiableList(customSoundGroups);
+    }
+
+    public static List<SoundGroupData> getPriorityGroups() {
+        return Collections.unmodifiableList(priorityGroups);
     }
 }

@@ -14,8 +14,4 @@ public class SoundGroupData {
         this.speedMultiplier = speedMultiplier;
         this.rangeMultiplier = rangeMultiplier;
     }
-
-    public List<String> getSoundList() {
-        return sounds;
-    }
 }
