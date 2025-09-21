@@ -5,10 +5,10 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import com.armilp.ezvcsurvival.EZVCSurvival;
 import com.google.gson.stream.MalformedJsonException;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraftforge.fml.loading.FMLPaths;
+import net.minecraftforge.registries.ForgeRegistries;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -69,15 +69,15 @@ public final class GunfireConfig {
         if (changed) save(path);
     }
 
-    @SuppressWarnings("deprecation")
+    
     private static boolean ensureAllPresent() {
         boolean changed = false;
         if (ROOT.mobs == null) { ROOT.mobs = new HashMap<>(); changed = true; }
 
-        for (EntityType<?> type : BuiltInRegistries.ENTITY_TYPE) {
+        for (EntityType<?> type : ForgeRegistries.ENTITY_TYPES) {
             MobCategory cat = type.getCategory();
             if (cat == MobCategory.MISC) continue;
-            String id = Objects.requireNonNull(BuiltInRegistries.ENTITY_TYPE.getKey(type)).toString();
+            String id = Objects.requireNonNull(ForgeRegistries.ENTITY_TYPES.getKey(type)).toString();
             if (!ROOT.mobs.containsKey(id)) {
                 ROOT.mobs.put(id, new Reaction(false, 1.0, cat == MobCategory.MONSTER ? 50.0 : 40.0));
                 changed = true;

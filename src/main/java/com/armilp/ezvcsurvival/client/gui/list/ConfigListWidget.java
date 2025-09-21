@@ -6,7 +6,8 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ObjectSelectionList;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.entity.EntityType;
+import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -246,17 +247,18 @@ public class ConfigListWidget extends ObjectSelectionList<ConfigListWidget.Entry
             return text.substring(0, left) + ellipsis;
         }
 
-        @SuppressWarnings("deprecation")
         private String getEntityDisplayName(String entityId) {
             try {
-                var key = ResourceLocation.parse(entityId);
-                var registry = BuiltInRegistries.ENTITY_TYPE;
-                if (registry.containsKey(key)) {
-                    var entityType = registry.get(key);
-                    return entityType.getDescription().getString();
+                ResourceLocation key = ResourceLocation.parse(entityId);
+                EntityType<?> type = ForgeRegistries.ENTITY_TYPES.getValue(key);
+                if (type != null) {
+                    String translationKey = type.getDescriptionId();
+                    return Component.translatable(translationKey).getString();
                 }
-            } catch (Exception ignored) {}
-            return entityId.contains(":") ? entityId.split(":")[1] : entityId;
+                return key.getPath();
+            } catch (Exception ignored) {
+                return entityId.contains(":") ? entityId.substring(entityId.indexOf(':') + 1) : entityId;
+            }
         }
 
         @Override

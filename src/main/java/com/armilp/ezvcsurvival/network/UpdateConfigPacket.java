@@ -2,7 +2,6 @@ package com.armilp.ezvcsurvival.network;
 
 import com.armilp.ezvcsurvival.config.*;
 import com.armilp.ezvcsurvival.util.IGoalRefresher;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -10,6 +9,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.server.ServerLifecycleHooks;
 
 import java.util.function.Supplier;
@@ -454,7 +454,7 @@ public class UpdateConfigPacket {
                 for (Entity e : allEntities) {
                     if (!(e instanceof Mob mob)) continue;
 
-                    ResourceLocation mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType());
+                    ResourceLocation mobId = ForgeRegistries.ENTITY_TYPES.getKey(mob.getType());
                     if (mobId == null) continue;
 
                     if (mobId.toString().equals(entityId)) {

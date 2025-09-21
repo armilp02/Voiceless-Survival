@@ -6,10 +6,10 @@ import com.google.gson.JsonParseException;
 import com.google.gson.reflect.TypeToken;
 import com.armilp.ezvcsurvival.EZVCSurvival;
 import com.google.gson.stream.MalformedJsonException;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraftforge.fml.loading.FMLPaths;
+import net.minecraftforge.registries.ForgeRegistries;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -119,13 +119,13 @@ public final class EntityVoiceConfig {
         }
     }
 
-    @SuppressWarnings("deprecation")
+    
     private static boolean ensureAllEntitiesPresent() {
         boolean added = false;
-        for (EntityType<?> type : BuiltInRegistries.ENTITY_TYPE) {
+        for (EntityType<?> type : ForgeRegistries.ENTITY_TYPES) {
             MobCategory category = type.getCategory();
             if (category == MobCategory.MISC) continue;
-            String id = Objects.requireNonNull(BuiltInRegistries.ENTITY_TYPE.getKey(type)).toString();
+            String id = Objects.requireNonNull(ForgeRegistries.ENTITY_TYPES.getKey(type)).toString();
             if (isMonsterCategory(category)) {
                 if (!MONSTER_CONFIGS.containsKey(id)) {
                     MONSTER_CONFIGS.put(id, EntityConfig.defaultFor(type));
@@ -141,21 +141,21 @@ public final class EntityVoiceConfig {
         return added;
     }
 
-    @SuppressWarnings("deprecation")
+    
     private static void generateDefaults() {
         MONSTER_CONFIGS.clear();
         ANIMAL_CONFIGS.clear();
-        for (EntityType<?> type : BuiltInRegistries.ENTITY_TYPE) {
+        for (EntityType<?> type : ForgeRegistries.ENTITY_TYPES) {
             MobCategory category = type.getCategory();
             if (category == MobCategory.MISC) continue;
             if (isMonsterCategory(category)) {
                 MONSTER_CONFIGS.put(
-                        Objects.requireNonNull(BuiltInRegistries.ENTITY_TYPE.getKey(type)).toString(),
+                        Objects.requireNonNull(ForgeRegistries.ENTITY_TYPES.getKey(type)).toString(),
                         EntityConfig.defaultFor(type)
                 );
             } else if (isAnimalLikeCategory(category)) {
                 ANIMAL_CONFIGS.put(
-                        Objects.requireNonNull(BuiltInRegistries.ENTITY_TYPE.getKey(type)).toString(),
+                        Objects.requireNonNull(ForgeRegistries.ENTITY_TYPES.getKey(type)).toString(),
                         EntityConfig.defaultFor(type)
                 );
             }

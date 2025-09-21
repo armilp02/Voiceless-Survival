@@ -4,7 +4,6 @@ import com.armilp.ezvcsurvival.config.*;
 import com.armilp.ezvcsurvival.goals.*;
 import com.armilp.ezvcsurvival.data.SoundGroupData;
 import com.armilp.ezvcsurvival.util.IGoalRefresher;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.DifficultyInstance;
@@ -13,6 +12,7 @@ import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.SpawnGroupData;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.level.ServerLevelAccessor;
+import net.minecraftforge.registries.ForgeRegistries;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -94,7 +94,7 @@ public abstract class MobEntityMixin implements IGoalRefresher {
         }
 
         try {
-            ResourceLocation mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType());
+            ResourceLocation mobId = ForgeRegistries.ENTITY_TYPES.getKey(mob.getType());
             if (mobId == null) {
                 ezvcsurvival$goalsInjected = true;
                 return;

@@ -7,6 +7,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.HashMap;
 import java.util.List;
@@ -29,7 +30,7 @@ public class ArmorEventHandler {
                 double speedMultiplier = Double.parseDouble(values[0].trim());
                 double rangeMultiplier = Double.parseDouble(values[1].trim());
                 armorEffectsMap.put(itemId, new ArmorEffect(speedMultiplier, rangeMultiplier));
-            } catch (NumberFormatException e) {
+            } catch (NumberFormatException ignored) {
             }
         }
         initialized = true;
@@ -44,7 +45,8 @@ public class ArmorEventHandler {
         for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
             ItemStack stack = player.getItemBySlot(slot);
             if (!stack.isEmpty()) {
-                ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
+                ResourceLocation id = ForgeRegistries.ITEMS.getKey(stack.getItem());
+                assert id != null;
                 if (armorEffectsMap.containsKey(id.toString())) {
                     ArmorEffect effect = armorEffectsMap.get(id.toString());
                     speedMultiplier *= effect.speedMultiplier;

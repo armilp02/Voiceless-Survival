@@ -12,10 +12,10 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.sounds.SoundEvent;
+import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -178,11 +178,11 @@ public class ConfigListScreen extends Screen {
 
     private void loadEntityConfigs() {
         items.clear();
-        for (EntityType<?> type : BuiltInRegistries.ENTITY_TYPE) {
+        for (EntityType<?> type : ForgeRegistries.ENTITY_TYPES) {
             MobCategory category = type.getCategory();
             if (category == MobCategory.MISC) continue;
 
-            String id = Objects.requireNonNull(BuiltInRegistries.ENTITY_TYPE.getKey(type)).toString();
+            String id = Objects.requireNonNull(ForgeRegistries.ENTITY_TYPES.getKey(type)).toString();
             EntityVoiceConfig.EntityConfig config = EntityVoiceConfig.get(id);
 
             if (config == null) {
@@ -200,8 +200,8 @@ public class ConfigListScreen extends Screen {
 
         Map<String, GeneralSoundsConfig.SoundEntry> soundConfigs = GeneralSoundsConfig.getSounds();
 
-        for (SoundEvent sound : BuiltInRegistries.SOUND_EVENT) {
-            String id = Objects.requireNonNull(BuiltInRegistries.SOUND_EVENT.getKey(sound)).toString();
+        for (SoundEvent sound : ForgeRegistries.SOUND_EVENTS) {
+            String id = Objects.requireNonNull(ForgeRegistries.SOUND_EVENTS.getKey(sound)).toString();
 
             GeneralSoundsConfig.SoundEntry config = soundConfigs.get(id);
             if (config == null) {
@@ -222,11 +222,11 @@ public class ConfigListScreen extends Screen {
             entityConfigs = java.util.Collections.emptyMap();
         }
 
-        for (EntityType<?> type : BuiltInRegistries.ENTITY_TYPE) {
+        for (EntityType<?> type : ForgeRegistries.ENTITY_TYPES) {
             MobCategory category = type.getCategory();
             if (category == MobCategory.MISC) continue;
 
-            String id = Objects.requireNonNull(BuiltInRegistries.ENTITY_TYPE.getKey(type)).toString();
+            String id = Objects.requireNonNull(ForgeRegistries.ENTITY_TYPES.getKey(type)).toString();
             GeneralSoundsConfig.Reaction reaction = entityConfigs.get(id);
 
             if (reaction == null) {
@@ -244,11 +244,11 @@ public class ConfigListScreen extends Screen {
         items.clear();
         Map<String, GunfireConfig.Reaction> entityConfigs = GunfireConfig.getMobReactions();
 
-        for (EntityType<?> type : BuiltInRegistries.ENTITY_TYPE) {
+        for (EntityType<?> type : ForgeRegistries.ENTITY_TYPES) {
             MobCategory category = type.getCategory();
             if (category == MobCategory.MISC) continue;
 
-            String id = Objects.requireNonNull(BuiltInRegistries.ENTITY_TYPE.getKey(type)).toString();
+            String id = Objects.requireNonNull(ForgeRegistries.ENTITY_TYPES.getKey(type)).toString();
             GunfireConfig.Reaction reaction = entityConfigs.get(id);
 
             if (reaction == null) {

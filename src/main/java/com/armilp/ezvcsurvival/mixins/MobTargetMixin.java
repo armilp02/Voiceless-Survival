@@ -3,12 +3,12 @@ package com.armilp.ezvcsurvival.mixins;
 import com.armilp.ezvcsurvival.config.VoiceConfig;
 import com.armilp.ezvcsurvival.config.EntityVoiceConfig;
 import com.armilp.ezvcsurvival.Plugin;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraftforge.registries.ForgeRegistries;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -55,7 +55,7 @@ public abstract class MobTargetMixin {
 
     @Unique
     private void ezvcsurvival$handleTargetedPlayer(Mob mob, Player targetPlayer) {
-        ResourceLocation mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType());
+        ResourceLocation mobId = ForgeRegistries.ENTITY_TYPES.getKey(mob.getType());
         String mobIdString = mobId.toString();
 
         double speedFromConfig = ezvcsurvival$getSpeedFromConfig(mobIdString);
@@ -130,7 +130,7 @@ public abstract class MobTargetMixin {
         ezvcsurvival$isSpeedBoosted = false;
 
         if (VoiceConfig.DEBUG.get()) {
-            ResourceLocation mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType());
+            ResourceLocation mobId = ForgeRegistries.ENTITY_TYPES.getKey(mob.getType());
             System.out.println("[EZVCSurvival] Removed speed boost from " + mobId.toString());
         }
     }

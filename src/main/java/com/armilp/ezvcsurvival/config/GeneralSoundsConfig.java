@@ -1,7 +1,7 @@
 package com.armilp.ezvcsurvival.config;
 
-import com.armilp.ezvcsurvival.compat.pointblank.PointBlankSoundsConfig;
-import com.armilp.ezvcsurvival.compat.sbw.SBWarfareSoundsConfig;
+import com.armilp.ezvcsurvival.compat.guns.PointBlankSoundsConfig;
+import com.armilp.ezvcsurvival.compat.guns.SBWarfareSoundsConfig;
 import com.armilp.ezvcsurvival.data.SoundGroupData;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -9,10 +9,10 @@ import com.google.gson.JsonParseException;
 import com.google.gson.reflect.TypeToken;
 import com.armilp.ezvcsurvival.EZVCSurvival;
 import com.google.gson.stream.MalformedJsonException;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraftforge.fml.loading.FMLPaths;
+import net.minecraftforge.registries.ForgeRegistries;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -194,7 +194,7 @@ public final class GeneralSoundsConfig {
         }
     }
 
-    @SuppressWarnings("deprecation")
+    
     private static boolean ensureNewEntitiesOnly() {
         boolean added = false;
 
@@ -203,10 +203,10 @@ public final class GeneralSoundsConfig {
             added = true;
         }
 
-        for (EntityType<?> type : BuiltInRegistries.ENTITY_TYPE) {
+        for (EntityType<?> type : ForgeRegistries.ENTITY_TYPES) {
             MobCategory category = type.getCategory();
             if (category == MobCategory.MISC) continue;
-            String id = Objects.requireNonNull(BuiltInRegistries.ENTITY_TYPE.getKey(type)).toString();
+            String id = Objects.requireNonNull(ForgeRegistries.ENTITY_TYPES.getKey(type)).toString();
             if (!ROOT.mobs.containsKey(id)) {
                 ROOT.mobs.put(id, Reaction.defaultFor(type));
                 added = true;
@@ -218,8 +218,8 @@ public final class GeneralSoundsConfig {
             added = true;
         }
 
-        for (var sound : BuiltInRegistries.SOUND_EVENT) {
-            String id = Objects.requireNonNull(BuiltInRegistries.SOUND_EVENT.getKey(sound)).toString();
+        for (var sound : ForgeRegistries.SOUND_EVENTS) {
+            String id = Objects.requireNonNull(ForgeRegistries.SOUND_EVENTS.getKey(sound)).toString();
 
             if (!ROOT.sounds.containsKey(id)) {
                 boolean shouldEnable = shouldEnableByDefault(id);
@@ -252,18 +252,18 @@ public final class GeneralSoundsConfig {
         return soundId.contains("explode") || soundId.contains("explosion");
     }
 
-    @SuppressWarnings("deprecation")
+    
     private static void generateDefaults() {
         if (ROOT.mobs == null) ROOT.mobs = new HashMap<>();
         if (ROOT.sounds == null) ROOT.sounds = new HashMap<>();
 
         ROOT.mobs.clear();
 
-        for (EntityType<?> type : BuiltInRegistries.ENTITY_TYPE) {
+        for (EntityType<?> type : ForgeRegistries.ENTITY_TYPES) {
             MobCategory category = type.getCategory();
             if (category == MobCategory.MISC) continue;
             ROOT.mobs.put(
-                    Objects.requireNonNull(BuiltInRegistries.ENTITY_TYPE.getKey(type)).toString(),
+                    Objects.requireNonNull(ForgeRegistries.ENTITY_TYPES.getKey(type)).toString(),
                     Reaction.defaultFor(type)
             );
         }
