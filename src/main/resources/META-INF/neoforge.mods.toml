@@ -5,7 +5,7 @@ issueTrackerURL = "https://github.com/armilp02/Voiceless-Survival/issues"
 
 [[mods]]
 modId = "ezvcsurvival"
-version = "1.21.1-0.8.4"
+version = "1.21.1-2.0.0"
 displayName = "Voiceless Survival"
 description = '''
 A survival mod for Minecraft with voice chat integration and enhanced gameplay.

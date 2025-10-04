@@ -2,9 +2,9 @@ package com.armilp.ezvcsurvival;
 
 import com.armilp.ezvcsurvival.config.SoundConfig;
 import com.armilp.ezvcsurvival.config.VoiceConfig;
+import com.armilp.ezvcsurvival.events.MobGoalInjector;
 import com.armilp.ezvcsurvival.events.SoundEventHandler;
-import com.armilp.ezvcsurvival.goals.injector.ReactToSoundGoalInjector;
-import com.armilp.ezvcsurvival.goals.ReactToSoundGoal;
+import com.armilp.ezvcsurvival.network.EZVCNetwork;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
@@ -22,23 +22,20 @@ public class EZVCSurvival {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     public EZVCSurvival(IEventBus modEventBus, ModContainer modContainer) {
-        // Registrar las configuraciones
         modContainer.registerConfig(ModConfig.Type.COMMON, VoiceConfig.CONFIG, "ezvcsurvival/voices.toml");
         modContainer.registerConfig(ModConfig.Type.COMMON, SoundConfig.SPEC, "ezvcsurvival/sounds.toml");
 
-        // Registrar esta clase para recibir eventos de ciclo de vida
         modEventBus.register(this);
+        modEventBus.register(EZVCNetwork.class);
 
-        // Registrar los manejadores de eventos en el bus de NeoForge
-        NeoForge.EVENT_BUS.register(new SoundEventHandler());
-        NeoForge.EVENT_BUS.register(new ReactToSoundGoalInjector());
-        NeoForge.EVENT_BUS.register(new ReactToSoundGoal.ReactToSoundGoalEventHandler());
+        NeoForge.EVENT_BUS.register(SoundEventHandler.class);
+        NeoForge.EVENT_BUS.register(MobGoalInjector.class);
     }
 
     @SubscribeEvent
     public void onCommonSetup(FMLCommonSetupEvent event) {
         SoundConfig.loadConfigs();
-        LOGGER.info("SoundConfig cargado correctamente");
+        LOGGER.info("SoundConfig loaded");
     }
 
     @SubscribeEvent
