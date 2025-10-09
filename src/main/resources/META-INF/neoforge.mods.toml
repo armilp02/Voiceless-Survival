@@ -10,6 +10,8 @@ displayName = "Voiceless Survival"
 description = '''
 A survival mod for Minecraft with voice chat integration and enhanced gameplay.
 '''
+[[mixins]]
+config="ezvcsurvival.mixins.json"
 
 authors = "armilp"
 [[dependencies.ezvcsurvival]]
