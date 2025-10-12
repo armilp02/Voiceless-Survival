@@ -20,11 +20,9 @@ group = mod_group_id
 
 repositories {
     mavenCentral()
-
     maven {
         url = "https://maven.neoforged.net/releases/"
     }
-
     maven {
         name = "Modrinth"
         url = "https://api.modrinth.com/maven/"
@@ -32,9 +30,16 @@ repositories {
             includeGroup "maven.modrinth"
         }
     }
-
     maven {
         url = "https://maven.maxhenkel.de/repository/public/"
+    }
+
+    maven {
+        name = "Curse Maven"
+        url = "https://www.cursemaven.com"
+        content {
+            includeGroup "curse.maven"
+        }
     }
 }
 
@@ -55,24 +60,20 @@ neoForge {
     runs {
         client {
             client()
-
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
-
         server {
             server()
             programArgument '--nogui'
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
-
         gameTestServer {
             type = "gameTestServer"
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
-
         clientData {
             clientData()
-            programArguments.addAll '--mod', project.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
+            programArguments.addAll '--mod', project.mod_id, '--all', '--output', file('src/generated/resources/').absolutePath, '--existing', file('src/main/resources/').absolutePath
         }
         configureEach {
             logLevel = org.slf4j.event.Level.DEBUG
@@ -94,11 +95,9 @@ configurations {
 
 dependencies {
     implementation "net.neoforged:neoforge:${neo_version}"
-
     implementation "de.maxhenkel.voicechat:voicechat-api:${voicechat_api_version}"
+    implementation "curse.maven:sound-physics-remastered-535489:5991605"
     runtimeOnly "maven.modrinth:simple-voice-chat:neoforge-${voicechat_version}"
-
-
 }
 
 var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
@@ -123,12 +122,11 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
 
 tasks.register('publishCurseForge', TaskPublishCurseForge) {
     dependsOn jar
-
     apiToken = System.getenv("CURSEFORGE_TOKEN")
-
     def mainFile = upload('1173633', file("build/libs/${mod_id}-${mod_version}.jar"))
+
     mainFile.displayName = "${mod_name}-${mod_version}"
-    mainFile.releaseType = 'beta'
+    mainFile.releaseType = 'release'
     mainFile.changelog = changelogText
 
     mainFile.addRequirement("simple-voice-chat")
@@ -139,7 +137,7 @@ modrinth {
     projectId = "voiceless-survival"
     versionName = "${mod_name} ${mod_version}"
     versionNumber = "${mod_version}"
-    versionType = "beta"
+    versionType = "release"
     uploadFile = file("build/libs/${mod_id}-${mod_version}.jar")
     gameVersions = ["${minecraft_version}"] as Iterable<? extends String>
     loaders = ["neoforge"]

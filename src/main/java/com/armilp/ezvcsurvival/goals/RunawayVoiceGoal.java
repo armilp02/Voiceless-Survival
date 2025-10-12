@@ -5,8 +5,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.animal.Animal;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.EnumSet;
@@ -15,16 +15,13 @@ public class RunawayVoiceGoal extends Goal {
 
     private final Animal mob;
     private final double speedModifier;
-    private final int voiceDetectionRange;
-    private Player targetPlayer;
+    private final double voiceDetectionRange;
     private final double threshold;
     private BlockPos targetSoundPosition;
-    private double targetSoundSpeed;
     private int ambientSoundCount;
-    private int fleeTicks = 0;
     private int distanceCovered = 0;
 
-    public RunawayVoiceGoal(Animal mob, double speedModifier, int detectionRange, double threshold) {
+    public RunawayVoiceGoal(Animal mob, double speedModifier, double detectionRange, double threshold) {
         this.mob = mob;
         this.speedModifier = speedModifier;
         this.voiceDetectionRange = detectionRange;
@@ -35,9 +32,7 @@ public class RunawayVoiceGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        targetPlayer = findNearestPlayer();
-        targetSoundPosition = Plugin.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange);
-        targetSoundSpeed = Plugin.getLastSoundSpeed(mob.blockPosition(), voiceDetectionRange);
+        targetSoundPosition = Plugin.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange, threshold);
         return targetSoundPosition != null;
     }
 
@@ -49,7 +44,8 @@ public class RunawayVoiceGoal extends Goal {
     @Override
     public void start() {
         if (targetSoundPosition != null) {
-            fleeFrom(Vec3.atCenterOf(targetSoundPosition));
+            Vec3 groundedDanger = grounded(Vec3.atCenterOf(targetSoundPosition));
+            fleeFrom(groundedDanger);
         }
     }
 
@@ -63,58 +59,71 @@ public class RunawayVoiceGoal extends Goal {
     @Override
     public void stop() {
         targetSoundPosition = null;
-        targetPlayer = null;
         ambientSoundCount = 0;
         mob.getNavigation().stop();
     }
 
-    private Player findNearestPlayer() {
-        return ((ServerLevel) mob.level()).getNearestPlayer(mob, voiceDetectionRange);
-    }
-
     private void handleSoundThreat() {
         distanceCovered++;
-        if (distanceCovered > 10 && distanceCovered % 20 == 0) { // Pausa cada 10 bloques
+
+        BlockPos groundedPos = mob.level().getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, targetSoundPosition);
+        double gx = groundedPos.getX() + 0.5;
+        double gz = groundedPos.getZ() + 0.5;
+
+        if (distanceCovered > 10 && distanceCovered % 20 == 0) {
             mob.getNavigation().stop();
-            mob.getLookControl().setLookAt(Vec3.atCenterOf(targetSoundPosition).x, Vec3.atCenterOf(targetSoundPosition).y, Vec3.atCenterOf(targetSoundPosition).z, 30.0F, 30.0F); // Mirar hacia el sonido
+            mob.getLookControl().setLookAt(
+                    gx,
+                    groundedPos.getY(),
+                    gz,
+                    30.0F,
+                    30.0F
+            );
         }
 
-        if (targetSoundPosition == null || mob.blockPosition().distSqr(targetSoundPosition) > threshold * threshold) {
-            targetSoundPosition = Plugin.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange);
-            targetSoundSpeed = Plugin.getLastSoundSpeed(mob.blockPosition(), voiceDetectionRange);
+        double dx = mob.getX() - gx;
+        double dz = mob.getZ() - gz;
+        double distanceSq2D = dx * dx + dz * dz;
+
+        if (targetSoundPosition == null || distanceSq2D > threshold * threshold) {
+            targetSoundPosition = Plugin.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange, threshold);
         } else {
-            fleeFrom(Vec3.atCenterOf(targetSoundPosition));
+            fleeFrom(new Vec3(gx, groundedPos.getY(), gz));
         }
     }
 
     private void fleeFrom(Vec3 dangerPosition) {
-        fleeTicks++;
-
         Vec3 fleeDirection = mob.position().subtract(dangerPosition).normalize().scale(20.0);
         double randomOffsetX = (mob.getRandom().nextDouble() - 0.5) * 5.0;
         double randomOffsetZ = (mob.getRandom().nextDouble() - 0.5) * 5.0;
 
         Vec3 fleeTarget = mob.position().add(fleeDirection).add(randomOffsetX, 0, randomOffsetZ);
-        if (isDangerousBlock(new BlockPos((int) fleeTarget.x, (int) fleeTarget.y, (int) fleeTarget.z))) {
+        Vec3 groundedTarget = grounded(fleeTarget);
+
+        if (isDangerousBlock(BlockPos.containing(groundedTarget))) {
             fleeDirection = fleeDirection.add(mob.getRandom().nextDouble() * 5.0, 0, mob.getRandom().nextDouble() * 5.0);
             fleeTarget = mob.position().add(fleeDirection);
+            groundedTarget = grounded(fleeTarget);
         }
 
-        mob.getNavigation().moveTo(fleeTarget.x, fleeTarget.y, fleeTarget.z, speedModifier);
+        mob.getNavigation().moveTo(groundedTarget.x, groundedTarget.y, groundedTarget.z, speedModifier);
 
-        // Make the mob play a panic sound (if applicable), but limit to 2-4 times
-        if (ambientSoundCount < 2 && mob.getRandom().nextDouble() < 0.5) { // 50% chance per flee action
+        if (ambientSoundCount < 2 && mob.getRandom().nextDouble() < 0.5) {
             mob.playAmbientSound();
             ambientSoundCount++;
         }
+    }
+
+    private Vec3 grounded(Vec3 desiredXZ) {
+        BlockPos base = BlockPos.containing(desiredXZ.x, 0, desiredXZ.z);
+        BlockPos top = mob.level().getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, base);
+        return new Vec3(top.getX() + 0.5, top.getY(), top.getZ() + 0.5);
     }
 
     private boolean isDangerousBlock(BlockPos pos) {
         ServerLevel level = (ServerLevel) mob.level();
         BlockState blockState = level.getBlockState(pos);
 
-        // Verifica si el bloque tiene un fluido o si no es completamente sólido
-        return !blockState.getFluidState().isEmpty() || !blockState.isSolid();
+        return !blockState.getFluidState().isEmpty() || !blockState.isSolidRender();
     }
-
 }
