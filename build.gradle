@@ -7,6 +7,7 @@ plugins {
     id 'net.minecraftforge.gradle' version '[6.0,6.2)'
     id "com.modrinth.minotaur" version "2.+"
     id 'net.darkhax.curseforgegradle' version '1.1.+'
+    id 'org.spongepowered.mixin' version '0.7.+'
 }
 
 version = mod_version
@@ -21,6 +22,7 @@ def changelogText = rootProject.file('changelog.md').text
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
 println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}"
+
 minecraft {
     mappings channel: mapping_channel, version: mapping_version
 
@@ -31,10 +33,10 @@ minecraft {
             workingDirectory project.file('run')
 
             property 'forge.logging.markers', 'REGISTRIES'
-
             property 'forge.logging.console.level', 'debug'
 
-            property 'forge.enabledGameTestNamespaces', mod_id
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
 
             mods {
                 "${mod_id}" {
@@ -45,11 +47,13 @@ minecraft {
 
         client {
             property 'forge.enabledGameTestNamespaces', mod_id
+            jvmArgs '-Dmixin.hotSwap=true', '-Dmixin.checks.interfaces=true', '-Dmixin.debug.export=true'
         }
 
         server {
             property 'forge.enabledGameTestNamespaces', mod_id
             args '--nogui'
+            jvmArgs '-Dmixin.hotSwap=true', '-Dmixin.checks.interfaces=true', '-Dmixin.debug.export=true'
         }
 
         gameTestServer {
@@ -58,10 +62,14 @@ minecraft {
 
         data {
             workingDirectory project.file('run-data')
-
             args '--mod', mod_id, '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
         }
     }
+}
+
+mixin {
+    add sourceSets.main, "${mod_id}.refmap.json"
+    config "${mod_id}.mixins.json"
 }
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
@@ -74,24 +82,27 @@ repositories {
         content {
             includeGroup "maven.modrinth"
         }
-        maven {
-            name = "Curse Maven"
-            url = "https://www.cursemaven.com"
-            content {
-                includeGroup "curse.maven"
-            }
+    }
+    maven {
+        name = "Curse Maven"
+        url = "https://www.cursemaven.com"
+        content {
+            includeGroup "curse.maven"
         }
+    }
+    maven {
+        name = 'SpongePowered'
+        url = 'https://repo.spongepowered.org/maven'
     }
 }
 
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
     implementation fg.deobf("curse.maven:timeless-and-classics-zero-1028108:6069322")
-    implementation fg.deobf("curse.maven:sound-physics-remastered-535489:3775919")
     implementation "de.maxhenkel.voicechat:voicechat-api:${voicechat_api_version}"
     runtimeOnly fg.deobf("maven.modrinth:simple-voice-chat:forge-${voicechat_version}")
-
 }
 
 tasks.named('processResources', ProcessResources).configure {
@@ -109,7 +120,6 @@ tasks.named('processResources', ProcessResources).configure {
     }
 }
 
-// Example for how to get properties into the manifest for reading at runtime.
 tasks.named('jar', Jar).configure {
     manifest {
         attributes([
@@ -119,7 +129,8 @@ tasks.named('jar', Jar).configure {
                 'Implementation-Title'    : project.name,
                 'Implementation-Version'  : project.jar.archiveVersion,
                 'Implementation-Vendor'   : mod_authors,
-                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+                'MixinConfigs'            : "${mod_id}.mixins.json"
         ])
     }
 
@@ -127,7 +138,7 @@ tasks.named('jar', Jar).configure {
 }
 
 tasks.register('publishCurseForge', TaskPublishCurseForge) {
-    dependsOn jar // Asegura que la tarea `:jar` se ejecute antes
+    dependsOn jar
 
     apiToken = System.getenv("CURSEFORGE_TOKEN")
 
@@ -140,7 +151,6 @@ tasks.register('publishCurseForge', TaskPublishCurseForge) {
     mainFile.addOptional("timeless-and-classics-zero")
 }
 
-
 modrinth {
     token = System.getenv("MODRINTH_TOKEN")
     projectId = "voiceless-survival"
@@ -151,7 +161,6 @@ modrinth {
     gameVersions = ["${minecraft_version}"] as Iterable<? extends String>
     loaders = ["forge"]
     changelog = changelogText
-
 
     dependencies {
         required.project 'simple-voice-chat'
@@ -179,5 +188,5 @@ publishing {
 }
 
 tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
+    options.encoding = 'UTF-8'
 }

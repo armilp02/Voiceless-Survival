@@ -2,11 +2,11 @@ package com.armilp.ezvcsurvival.events;
 
 import com.armilp.ezvcsurvival.config.VoiceConfig;
 import com.armilp.ezvcsurvival.data.ArmorEffect;
-import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.HashMap;
 import java.util.List;
@@ -35,6 +35,7 @@ public class ArmorEventHandler {
         initialized = true;
     }
 
+
     public static double[] getArmorMultipliers(Player player) {
         init();
         double speedMultiplier = 1.0;
@@ -43,7 +44,7 @@ public class ArmorEventHandler {
         for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
             ItemStack stack = player.getItemBySlot(slot);
             if (!stack.isEmpty()) {
-                ResourceLocation id = Registry.ITEM.getKey(stack.getItem());
+                ResourceLocation id = ForgeRegistries.ITEMS.getKey(stack.getItem());
                 if (armorEffectsMap.containsKey(id.toString())) {
                     ArmorEffect effect = armorEffectsMap.get(id.toString());
                     speedMultiplier *= effect.speedMultiplier;

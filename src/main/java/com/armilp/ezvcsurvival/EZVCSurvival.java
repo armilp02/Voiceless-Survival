@@ -1,9 +1,10 @@
 package com.armilp.ezvcsurvival;
 
-import com.armilp.ezvcsurvival.config.SoundConfig;
-import com.armilp.ezvcsurvival.config.VoiceConfig;
-import com.armilp.ezvcsurvival.events.GunFireListener;
+import com.armilp.ezvcsurvival.compat.tacz.GunFireListener;
+import com.armilp.ezvcsurvival.config.*;
+import com.armilp.ezvcsurvival.network.EZVCNetwork;
 import com.mojang.logging.LogUtils;
+import com.tacz.guns.GunMod;
 import com.tacz.guns.resource.CommonAssetsManager;
 import com.tacz.guns.resource.index.CommonGunIndex;
 import net.minecraft.resources.ResourceLocation;
@@ -28,7 +29,9 @@ public class EZVCSurvival {
 
     public EZVCSurvival() {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
-        if (ModList.get().isLoaded("tacz")) {
+        EZVCNetwork.registerPackets();
+
+        if (ModList.get().isLoaded(GunMod.MOD_ID)) {
             MinecraftForge.EVENT_BUS.register(GunFireListener.class);
             CommonAssetsManager assets = CommonAssetsManager.getInstance();
             if (assets != null) {
@@ -38,7 +41,7 @@ public class EZVCSurvival {
                     GunFireListener.CommonGunIndexRegistry.registerCommonGunIndex(gunId, index);
                 }
             }
-        }
+       }
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, VoiceConfig.CONFIG, "ezvcsurvival/voices.toml");
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, SoundConfig.SPEC, "ezvcsurvival/sounds.toml");
 
@@ -48,9 +51,11 @@ public class EZVCSurvival {
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
+        EntityVoiceConfig.init();
+        GeneralSoundsConfig.init();
+        GunfireConfig.init();
         SoundConfig.loadConfigs();
     }
-
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
     }
