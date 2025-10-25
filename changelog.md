@@ -1,17 +1,17 @@
-### Version 1.0.0
-**Warning:** Before installing this version, make sure to back up your previous configurations.
+## Version 2.0.0
 
-**Fixes:**
-- Improved gun fire detection for Vic's Point Blank mod.
-
-**Added:**
-- *Sound Physics Remastered Compatibility:*
-  Now supports microphone detection. Based on sound reflections, this feature adjusts mob detection range as configured in `voices.toml`.
-
-
-- *New `thunder_range_multiplier` Option:*
-  A new setting in `sounds.toml` that reduces sound range during rain or thunderstorms.
+- 🔄️ **Changes:**
+    - Mobs no longer react to sounds when targeting the player.
+    - Enhance handling of sound events.
+    - The configuration system has been reorganized for better clarity and usability.
+    - Update audio level calculation.
+    - Disabled Sound Physics Remastered mod to refactor it in a future update.
 
 
-- *Armor Effects:*
-  Specific armor pieces can now reduce detection range and mob speed when worn.
+- ✅ **Added:**
+    - Mobs now get a speed multiplier when targeting a player who is speaking.
+    - **New JSON Config Files:**
+        - `entity_voices.json`: Defines how entities react to your voice, applicable to both vanilla and modded mobs.
+        - `generalsounds.json`: Registers all mobs and sound events listed in SOUND_EVENT for easier management.
+    - These configs are fully editable in-game via `/ezvcsurvival config/reloadconfig`, allowing you to tweak every parameter.
+  

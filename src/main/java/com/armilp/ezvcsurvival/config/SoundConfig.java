@@ -3,16 +3,14 @@ package com.armilp.ezvcsurvival.config;
 import com.armilp.ezvcsurvival.EZVCSurvival;
 import com.armilp.ezvcsurvival.data.SoundGroupData;
 import net.minecraftforge.common.ForgeConfigSpec;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.event.config.ModConfigEvent;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-@Mod.EventBusSubscriber(modid = EZVCSurvival.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD)
+
 public class SoundConfig {
 
     public static final ForgeConfigSpec.DoubleValue THUNDER_RANGE_MULTIPLIER;
@@ -32,25 +30,8 @@ public class SoundConfig {
         SPEC = builder.build();
     }
 
-    @SubscribeEvent
-    public static void onModConfigLoading(ModConfigEvent.Loading event) {
-        if (event.getConfig().getSpec() == SPEC) {
-            EZVCSurvival.LOGGER.info("Loading EZVCSurvival configuration...");
-            loadConfigs();
-        }
-    }
-
-    @SubscribeEvent
-    public static void onModConfigReloading(ModConfigEvent.Reloading event) {
-        if (event.getConfig().getSpec() == SPEC) {
-            EZVCSurvival.LOGGER.info("Reloading EZVCSurvival configuration...");
-            loadConfigs();
-        }
-    }
-
     public static void loadConfigs() {
         try {
-            // Solo inicializamos configuración de sonidos generales
             GeneralSoundsConfig.init();
             mergeGeneralSoundsFromJson();
             refreshPriorityGroups();

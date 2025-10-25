@@ -124,6 +124,6 @@ public class RunawayVoiceGoal extends Goal {
         ServerLevel level = (ServerLevel) mob.level();
         BlockState blockState = level.getBlockState(pos);
 
-        return !blockState.getFluidState().isEmpty() || !blockState.isSolidRender(level, pos);
+        return !blockState.getFluidState().isEmpty() || !blockState.isSolidRender();
     }
 }

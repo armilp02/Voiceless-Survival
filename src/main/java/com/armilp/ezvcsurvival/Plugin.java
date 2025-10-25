@@ -21,7 +21,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 @ForgeVoicechatPlugin
-@Mod.EventBusSubscriber(modid = "ezvcsurvival")
 public class Plugin implements VoicechatPlugin {
 
     private boolean DEBUG;

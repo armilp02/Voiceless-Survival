@@ -4,16 +4,9 @@ import com.armilp.ezvcsurvival.config.EntityVoiceConfig;
 import com.armilp.ezvcsurvival.config.GeneralSoundsConfig;
 import com.armilp.ezvcsurvival.config.SoundConfig;
 import com.armilp.ezvcsurvival.config.VoiceConfig;
-import com.armilp.ezvcsurvival.util.IGoalRefresher;
+import com.armilp.ezvcsurvival.events.MobGoalInjector;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.Mob;
 import net.minecraftforge.event.network.CustomPayloadEvent;
-import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.server.ServerLifecycleHooks;
 
 public class UpdateConfigPacket {
 
@@ -24,19 +17,10 @@ public class UpdateConfigPacket {
         SOUND_PRIORITY(5);
 
         private final int id;
-
-        ConfigType(int id) {
-            this.id = id;
-        }
-
-        public int getId() {
-            return id;
-        }
-
+        ConfigType(int id) { this.id = id; }
+        public int getId() { return id; }
         public static ConfigType fromId(int id) {
-            for (ConfigType type : values()) {
-                if (type.id == id) return type;
-            }
+            for (ConfigType type : values()) if (type.id == id) return type;
             return ENTITY_VOICE;
         }
     }
@@ -97,7 +81,6 @@ public class UpdateConfigPacket {
         double value2 = buf.readDouble();
         double value3 = buf.readDouble();
         boolean boolValue = buf.readBoolean();
-
         switch (type) {
             case ENTITY_VOICE:
                 return new UpdateConfigPacket(targetId, enabled, value1, value2, value3);
@@ -114,7 +97,6 @@ public class UpdateConfigPacket {
 
     public static void handle(UpdateConfigPacket msg, CustomPayloadEvent.Context ctx) {
         boolean configChanged = false;
-
         if ("global".equals(msg.targetId)) {
             handleGlobalConfigChange(msg);
             configChanged = true;
@@ -141,7 +123,6 @@ public class UpdateConfigPacket {
                     break;
             }
         }
-
         if (configChanged) {
             try {
                 switch (msg.configType) {
@@ -154,28 +135,23 @@ public class UpdateConfigPacket {
                         GeneralSoundsConfig.init();
                         break;
                 }
-
                 SoundConfig.loadConfigs();
-
                 if (VoiceConfig.DEBUG.get()) {
-                    System.out.println("[EZVCSurvival] Configurations reloaded successfully after update: " + msg.configType + " - " + msg.targetId);
+                    System.out.println("[EZVCSurvival] Config reload post update: " + msg.configType + " - " + msg.targetId);
                 }
             } catch (Exception e) {
                 if (VoiceConfig.DEBUG.get()) {
-                    System.err.println("[EZVCSurvival] Error reloading configurations after update: " + e.getMessage());
+                    System.err.println("[EZVCSurvival] Error reloading configs post update: " + e.getMessage());
                     e.printStackTrace();
                 }
             }
-
-            refreshAllEntityGoals();
-
+            MobGoalInjector.refreshAll();
             if (msg.configType == ConfigType.ENTITY_VOICE ||
                     msg.configType == ConfigType.GENERAL_SOUND_ENTITY ||
                     msg.configType == ConfigType.SOUND_PRIORITY) {
-                refreshSpecificEntityGoals(msg.targetId);
+                MobGoalInjector.refreshEntityId(msg.targetId);
             }
         }
-        // consumerMainThread gestiona enqueueWork y setPacketHandled.
     }
 
     private static void handleEntityVoiceConfig(UpdateConfigPacket msg) {
@@ -183,138 +159,92 @@ public class UpdateConfigPacket {
                 new EntityVoiceConfig.EntityConfig(msg.enabled, msg.value1, msg.value2, msg.value3);
         EntityVoiceConfig.set(msg.targetId, newConfig);
         EntityVoiceConfig.persist();
-
         EntityVoiceConfig.EntityConfig updated = EntityVoiceConfig.get(msg.targetId);
-        boolean verificationPassed = (updated != null &&
+        boolean ok = updated != null &&
                 updated.enabled == msg.enabled &&
                 Math.abs(updated.speed - msg.value1) < 0.001 &&
                 Math.abs(updated.range - msg.value2) < 0.001 &&
-                Math.abs(updated.threshold - msg.value3) < 0.001);
-
+                Math.abs(updated.threshold - msg.value3) < 0.001;
         if (VoiceConfig.DEBUG.get()) {
-            System.out.println("[EZVCSurvival] Server updated EntityVoice config for: " + msg.targetId +
-                    " enabled=" + msg.enabled + " speed=" + msg.value1 + " range=" + msg.value2 +
-                    " threshold=" + msg.value3 + " verification=" + verificationPassed);
+            System.out.println("[EZVCSurvival] EntityVoice update " + msg.targetId + " ok=" + ok);
         }
     }
 
     private static void handleGeneralSoundConfig(UpdateConfigPacket msg) {
-        if (GeneralSoundsConfig.ROOT == null) {
-            GeneralSoundsConfig.ROOT = new GeneralSoundsConfig.Root();
-        }
-        if (GeneralSoundsConfig.ROOT.sounds == null) {
-            GeneralSoundsConfig.ROOT.sounds = new java.util.HashMap<>();
-        }
-
+        if (GeneralSoundsConfig.ROOT == null) GeneralSoundsConfig.ROOT = new GeneralSoundsConfig.Root();
+        if (GeneralSoundsConfig.ROOT.sounds == null) GeneralSoundsConfig.ROOT.sounds = new java.util.HashMap<>();
         GeneralSoundsConfig.setSoundEntry(msg.targetId, msg.enabled, msg.value1, msg.value2, msg.boolValue);
         GeneralSoundsConfig.persist();
-
         GeneralSoundsConfig.SoundEntry updated = GeneralSoundsConfig.getSounds().get(msg.targetId);
-        boolean verificationPassed = (updated != null &&
+        boolean ok = updated != null &&
                 updated.enabled == msg.enabled &&
                 Math.abs(updated.speed_multiplier - msg.value1) < 0.001 &&
                 Math.abs(updated.range_multiplier - msg.value2) < 0.001 &&
-                updated.is_priority == msg.boolValue);
-
+                updated.is_priority == msg.boolValue;
         if (VoiceConfig.DEBUG.get()) {
-            System.out.println("[EZVCSurvival] Server updated GeneralSound config for: " + msg.targetId +
-                    " enabled=" + msg.enabled + " speed=" + msg.value1 + " range=" + msg.value2 +
-                    " isPriority=" + msg.boolValue + " verification=" + verificationPassed);
+            System.out.println("[EZVCSurvival] GeneralSound update " + msg.targetId + " ok=" + ok);
         }
     }
 
     private static void handleGeneralSoundEntityConfig(UpdateConfigPacket msg) {
-        if (GeneralSoundsConfig.ROOT == null) {
-            GeneralSoundsConfig.ROOT = new GeneralSoundsConfig.Root();
-        }
-        if (GeneralSoundsConfig.ROOT.mobs == null) {
-            GeneralSoundsConfig.ROOT.mobs = new java.util.HashMap<>();
-        }
-
+        if (GeneralSoundsConfig.ROOT == null) GeneralSoundsConfig.ROOT = new GeneralSoundsConfig.Root();
+        if (GeneralSoundsConfig.ROOT.mobs == null) GeneralSoundsConfig.ROOT.mobs = new java.util.HashMap<>();
         GeneralSoundsConfig.setMobReaction(msg.targetId, msg.enabled, msg.value1, msg.value2);
         GeneralSoundsConfig.persist();
-
         GeneralSoundsConfig.Reaction updated = GeneralSoundsConfig.getMobReactions().get(msg.targetId);
-        boolean verificationPassed = (updated != null &&
+        boolean ok = updated != null &&
                 updated.enabled == msg.enabled &&
                 Math.abs(updated.speed - msg.value1) < 0.001 &&
-                Math.abs(updated.range - msg.value2) < 0.001);
-
+                Math.abs(updated.range - msg.value2) < 0.001;
         if (VoiceConfig.DEBUG.get()) {
-            System.out.println("[EZVCSurvival] Server updated GeneralSound entity config for: " + msg.targetId +
-                    " enabled=" + msg.enabled + " speed=" + msg.value1 + " range=" + msg.value2 +
-                    " verification=" + verificationPassed);
+            System.out.println("[EZVCSurvival] GeneralSoundEntity update " + msg.targetId + " ok=" + ok);
         }
     }
 
     private static void handleSoundPriorityConfig(UpdateConfigPacket msg) {
-        if (GeneralSoundsConfig.ROOT == null) {
-            GeneralSoundsConfig.ROOT = new GeneralSoundsConfig.Root();
-        }
-        if (GeneralSoundsConfig.ROOT.sounds == null) {
-            GeneralSoundsConfig.ROOT.sounds = new java.util.HashMap<>();
-        }
-
-        GeneralSoundsConfig.SoundEntry soundEntry = GeneralSoundsConfig.getSounds().get(msg.targetId);
-        if (soundEntry != null) {
-            soundEntry.is_priority = msg.boolValue;
-            if (msg.value1 != 0.0) {
-                soundEntry.speed_multiplier = msg.value1;
-            }
-            if (msg.value2 != 0.0) {
-                soundEntry.range_multiplier = msg.value2;
-            }
+        if (GeneralSoundsConfig.ROOT == null) GeneralSoundsConfig.ROOT = new GeneralSoundsConfig.Root();
+        if (GeneralSoundsConfig.ROOT.sounds == null) GeneralSoundsConfig.ROOT.sounds = new java.util.HashMap<>();
+        GeneralSoundsConfig.SoundEntry se = GeneralSoundsConfig.getSounds().get(msg.targetId);
+        if (se != null) {
+            se.is_priority = msg.boolValue;
+            if (msg.value1 != 0.0) se.speed_multiplier = msg.value1;
+            if (msg.value2 != 0.0) se.range_multiplier = msg.value2;
         } else {
             GeneralSoundsConfig.setSoundEntry(msg.targetId, msg.enabled,
                     msg.value1 != 0.0 ? msg.value1 : 1.0,
                     msg.value2 != 0.0 ? msg.value2 : 1.0,
                     msg.boolValue);
         }
-
         GeneralSoundsConfig.persist();
-
         GeneralSoundsConfig.SoundEntry updated = GeneralSoundsConfig.getSounds().get(msg.targetId);
-        boolean verificationPassed = (updated != null &&
-                updated.is_priority == msg.boolValue &&
-                Math.abs(updated.speed_multiplier - (msg.value1 != 0.0 ? msg.value1 : updated.speed_multiplier)) < 0.001 &&
-                Math.abs(updated.range_multiplier - (msg.value2 != 0.0 ? msg.value2 : updated.range_multiplier)) < 0.001);
-
+        boolean ok = updated != null && updated.is_priority == msg.boolValue;
         if (VoiceConfig.DEBUG.get()) {
-            System.out.println("[EZVCSurvival] Server updated Sound Priority for: " + msg.targetId +
-                    " isPriority=" + msg.boolValue + " speed=" + msg.value1 + " range=" + msg.value2 +
-                    " verification=" + verificationPassed);
+            System.out.println("[EZVCSurvival] SoundPriority update " + msg.targetId + " ok=" + ok);
         }
     }
 
     private static void handleGlobalConfigChange(UpdateConfigPacket msg) {
         switch (msg.configType) {
             case ENTITY_VOICE:
-                if (EntityVoiceConfig.ROOT == null) {
-                    EntityVoiceConfig.ROOT = new EntityVoiceConfig.RootConfig();
-                }
+                if (EntityVoiceConfig.ROOT == null) EntityVoiceConfig.ROOT = new EntityVoiceConfig.RootConfig();
                 EntityVoiceConfig.ROOT.enabled = msg.enabled;
                 EntityVoiceConfig.persist();
-
                 if (VoiceConfig.DEBUG.get()) {
-                    System.out.println("[EZVCSurvival] Server updated EntityVoice global config: enabled=" + msg.enabled);
+                    System.out.println("[EZVCSurvival] Global EntityVoice enabled=" + msg.enabled);
                 }
                 break;
             case GENERAL_SOUND:
-                if (GeneralSoundsConfig.ROOT == null) {
-                    GeneralSoundsConfig.ROOT = new GeneralSoundsConfig.Root();
-                }
+                if (GeneralSoundsConfig.ROOT == null) GeneralSoundsConfig.ROOT = new GeneralSoundsConfig.Root();
                 GeneralSoundsConfig.ROOT.enabled = msg.enabled;
                 GeneralSoundsConfig.persist();
-
                 if (VoiceConfig.DEBUG.get()) {
-                    System.out.println("[EZVCSurvival] Server updated GeneralSound global config: enabled=" + msg.enabled);
+                    System.out.println("[EZVCSurvival] Global GeneralSound enabled=" + msg.enabled);
                 }
                 break;
             case SOUND_PRIORITY:
                 GeneralSoundsConfig.enableAllPrioritySounds(msg.enabled);
-
                 if (VoiceConfig.DEBUG.get()) {
-                    System.out.println("[EZVCSurvival] Server updated Sound Priority global config: enabled=" + msg.enabled);
+                    System.out.println("[EZVCSurvival] Global Priority enabled=" + msg.enabled);
                 }
                 break;
         }
@@ -325,88 +255,13 @@ public class UpdateConfigPacket {
             GeneralSoundsConfig.init();
             EntityVoiceConfig.init();
             SoundConfig.loadConfigs();
+            MobGoalInjector.refreshAll();
+            if (VoiceConfig.DEBUG.get()) {
+                System.out.println("[EZVCSurvival] Manual refresh");
+            }
         } catch (Exception e) {
             if (VoiceConfig.DEBUG.get()) {
                 System.err.println("[EZVCSurvival] Error refreshing configs: " + e.getMessage());
-                e.printStackTrace();
-            }
-        }
-    }
-
-    private static void refreshAllEntityGoals() {
-        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
-
-        if (server == null) {
-            return;
-        }
-
-        try {
-            for (ServerLevel level : server.getAllLevels()) {
-                Iterable<Entity> allEntities = level.getAllEntities();
-                for (Entity e : allEntities) {
-                    if (!(e instanceof Mob mob)) continue;
-
-                    if (mob instanceof IGoalRefresher refresher) {
-                        try {
-                            refresher.ezvcsurvival$RefreshGoals();
-                        } catch (Exception ex) {
-                            if (VoiceConfig.DEBUG.get()) {
-                                ex.printStackTrace();
-                            }
-                        }
-                    }
-                }
-            }
-        } catch (NoSuchMethodError nsme) {
-            if (VoiceConfig.DEBUG.get()) {
-                System.err.println("[EZVCSurvival] update packet: level.getAllEntities() does not exist in this mapping.");
-                nsme.printStackTrace();
-            }
-        } catch (Exception e) {
-            if (VoiceConfig.DEBUG.get()) {
-                System.err.println("[EZVCSurvival] Error to refresh goals: " + e.getMessage());
-                e.printStackTrace();
-            }
-        }
-    }
-
-    private static void refreshSpecificEntityGoals(String entityId) {
-        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
-
-        if (server == null) {
-            return;
-        }
-
-        try {
-            for (ServerLevel level : server.getAllLevels()) {
-                Iterable<Entity> allEntities = level.getAllEntities();
-                for (Entity e : allEntities) {
-                    if (!(e instanceof Mob mob)) continue;
-
-                    ResourceLocation mobId = ForgeRegistries.ENTITY_TYPES.getKey(mob.getType());
-                    if (mobId == null) continue;
-
-                    if (mobId.toString().equals(entityId)) {
-                        if (mob instanceof IGoalRefresher refresher) {
-                            try {
-                                refresher.ezvcsurvival$RefreshGoals();
-                            } catch (Exception ex) {
-                                if (VoiceConfig.DEBUG.get()) {
-                                    ex.printStackTrace();
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        } catch (NoSuchMethodError nsme) {
-            if (VoiceConfig.DEBUG.get()) {
-                System.err.println("[EZVCSurvival] update packet: level.getAllEntities() does not exist in this mapping.");
-                nsme.printStackTrace();
-            }
-        } catch (Exception e) {
-            if (VoiceConfig.DEBUG.get()) {
-                System.err.println("[EZVCSurvival] Error to refresh goals: " + e.getMessage());
                 e.printStackTrace();
             }
         }

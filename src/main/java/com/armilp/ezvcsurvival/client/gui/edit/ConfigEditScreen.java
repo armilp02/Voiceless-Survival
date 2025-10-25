@@ -371,10 +371,10 @@ public class ConfigEditScreen extends Screen {
         this.renderBackground(graphics, mouseX, mouseY, partialTick);
         int titleY = TOP_MARGIN;
         graphics.drawCenteredString(this.font, this.title, this.width / 2 + 1, titleY + 1, 0x88000000);
-        graphics.drawCenteredString(this.font, this.title, this.width / 2, titleY, 0xFFFFFF);
+        graphics.drawCenteredString(this.font, this.title, this.width / 2, titleY, 0xFFFFFFFF);
         String elementInfo = "ID: " + elementId;
         int elementInfoY = titleY + 18;
-        graphics.drawCenteredString(this.font, elementInfo, this.width / 2, elementInfoY, 0xAAAAAA);
+        graphics.drawCenteredString(this.font, elementInfo, this.width / 2, elementInfoY, 0xFFAAAAAA);
         int lineY = elementInfoY + 10;
         int lineWidth = Math.min(180, this.width - 100);
         graphics.fill(this.width / 2 - lineWidth / 2, lineY, this.width / 2 + lineWidth / 2, lineY + 1, 0x44FFFFFF);
@@ -390,18 +390,18 @@ public class ConfigEditScreen extends Screen {
         int centerX = this.width / 2;
         int startY = TOP_MARGIN + 40;
         int currentY = startY;
-        graphics.drawString(this.font, "Enabled", centerX - CENTER_X_OFFSET, currentY - 15, 0xFFFFFF);
+        graphics.drawString(this.font, "Enabled", centerX - CENTER_X_OFFSET, currentY - 15, 0xFFFFFFFF);
         currentY += FIELD_SPACING + 20;
-        graphics.drawString(this.font, "Speed", centerX - CENTER_X_OFFSET, currentY - 15, 0xFFFFFF);
+        graphics.drawString(this.font, "Speed", centerX - CENTER_X_OFFSET, currentY - 15, 0xFFFFFFFF);
         currentY += FIELD_SPACING + 20;
-        graphics.drawString(this.font, "Range", centerX - CENTER_X_OFFSET, currentY - 15, 0xFFFFFF);
+        graphics.drawString(this.font, "Range", centerX - CENTER_X_OFFSET, currentY - 15, 0xFFFFFFFF);
         currentY += FIELD_SPACING + 20;
         if (editType == EditType.ENTITY_CONFIG) {
-            graphics.drawString(this.font, "Threshold", centerX - CENTER_X_OFFSET, currentY - 15, 0xFFFFFF);
+            graphics.drawString(this.font, "Threshold", centerX - CENTER_X_OFFSET, currentY - 15, 0xFFFFFFFF);
             currentY += FIELD_SPACING + 20;
         }
         if (editType == EditType.GENERAL_SOUND_CONFIG) {
-            graphics.drawString(this.font, "Priority Sound", centerX - CENTER_X_OFFSET, currentY - 15, 0xFFFFFF);
+            graphics.drawString(this.font, "Priority Sound", centerX - CENTER_X_OFFSET, currentY - 15, 0xFFFFFFFF);
         }
     }
 

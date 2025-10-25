@@ -7,6 +7,7 @@ import net.minecraft.client.gui.components.ObjectSelectionList;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
 
@@ -65,7 +66,7 @@ public class ConfigListWidget extends ObjectSelectionList<ConfigListWidget.Entry
     }
 
     @Override
-    protected int getScrollbarPosition() {
+    protected int scrollBarX() {
         return this.getRowLeft() + this.getRowWidth() + 5;
     }
 
@@ -119,13 +120,13 @@ public class ConfigListWidget extends ObjectSelectionList<ConfigListWidget.Entry
             int maxTextWidth = width - STATUS_AREA_WIDTH - PADDING * 2;
             String displayName = truncateText(entityName, maxTextWidth);
 
-            graphics.drawString(Minecraft.getInstance().font, displayName, textLeft, centerY - 4, 0xFFFFFF, false);
+            graphics.drawString(Minecraft.getInstance().font, displayName, textLeft, centerY - 4, 0xFFFFFFFF, false);
 
             Component statusText = entityItem.getConfig().enabled
                     ? Component.translatable("gui.ezvcsurvival.enabled")
                     : Component.translatable("gui.ezvcsurvival.disabled");
 
-            int statusColor = entityItem.getConfig().enabled ? 0x55FF55 : 0xFF5555;
+            int statusColor = entityItem.getConfig().enabled ? 0xFF55FF55 : 0xFFFF5555;
             int statusWidth = Minecraft.getInstance().font.width(statusText);
 
             graphics.fill(statusRight - statusWidth - 6, centerY - 8, statusRight, centerY + 8,
@@ -143,13 +144,13 @@ public class ConfigListWidget extends ObjectSelectionList<ConfigListWidget.Entry
             int maxTextWidth = width - STATUS_AREA_WIDTH - PADDING * 2;
             String displayName = truncateText(soundName, maxTextWidth);
 
-            graphics.drawString(Minecraft.getInstance().font, displayName, textLeft, centerY - 4, 0xFFFFFF, false);
+            graphics.drawString(Minecraft.getInstance().font, displayName, textLeft, centerY - 4, 0xFFFFFFFF, false);
 
             Component statusText = soundItem.getConfig().enabled
                     ? Component.translatable("gui.ezvcsurvival.enabled")
                     : Component.translatable("gui.ezvcsurvival.disabled");
 
-            int statusColor = soundItem.getConfig().enabled ? 0x55FF55 : 0xFF5555;
+            int statusColor = soundItem.getConfig().enabled ? 0xFF55FF55 : 0xFFFF5555;
             int statusWidth = Minecraft.getInstance().font.width(statusText);
 
             graphics.fill(statusRight - statusWidth - 6, centerY - 8, statusRight, centerY + 8,
@@ -169,13 +170,13 @@ public class ConfigListWidget extends ObjectSelectionList<ConfigListWidget.Entry
             int maxTextWidth = width - STATUS_AREA_WIDTH - PADDING * 2;
             String displayName = truncateText(entityName, maxTextWidth);
 
-            graphics.drawString(Minecraft.getInstance().font, displayName, textLeft, centerY - 4, 0xFFFFFF, false);
+            graphics.drawString(Minecraft.getInstance().font, displayName, textLeft, centerY - 4, 0xFFFFFFFF, false);
 
             Component statusText = entityItem.getReaction().enabled
                     ? Component.translatable("gui.ezvcsurvival.enabled")
                     : Component.translatable("gui.ezvcsurvival.disabled");
 
-            int statusColor = entityItem.getReaction().enabled ? 0x55FF55 : 0xFF5555;
+            int statusColor = entityItem.getReaction().enabled ? 0xFF55FF55 : 0xFFFF5555;
             int statusWidth = Minecraft.getInstance().font.width(statusText);
 
             graphics.fill(statusRight - statusWidth - 6, centerY - 8, statusRight, centerY + 8,
@@ -276,7 +277,7 @@ public class ConfigListWidget extends ObjectSelectionList<ConfigListWidget.Entry
                 tooltipY = mouseY + 12;
             }
 
-            graphics.renderComponentTooltip(font, tooltipLines, tooltipX, tooltipY);
+            graphics.renderComponentTooltip(font, tooltipLines, tooltipX, tooltipY, ItemStack.EMPTY);
         }
 
         private List<Component> getTooltipLines() {

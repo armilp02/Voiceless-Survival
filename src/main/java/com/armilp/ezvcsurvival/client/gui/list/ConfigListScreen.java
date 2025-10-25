@@ -37,7 +37,6 @@ public class ConfigListScreen extends Screen {
     private EditBox searchBox;
     private String searchQuery = "";
     private Button clearSearchButton;
-    private Button refreshButton;
     private Button backButton;
     private Button toggleViewButton;
     private Button toggleEnabledButton;
@@ -114,10 +113,6 @@ public class ConfigListScreen extends Screen {
             this.addRenderableWidget(toggleEnabledButton);
             currentX += buttonWidth + HORIZONTAL_SPACING;
         }
-
-        refreshButton = Button.builder(Component.translatable("button.ezvcsurvival.refresh"), b -> refreshData())
-                .bounds(this.width - rightMargin - buttonWidth, topRowY, buttonWidth, BUTTON_HEIGHT).build();
-        this.addRenderableWidget(refreshButton);
 
         int searchWidth = Math.min(300, usableWidth - 100);
         searchBox = new EditBox(this.font, leftMargin, searchRowY, searchWidth, SEARCH_HEIGHT,
@@ -303,7 +298,7 @@ public class ConfigListScreen extends Screen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(graphics, mouseX, mouseY, partialTick);
-        graphics.drawCenteredString(this.font, this.title, this.width / 2, 8, 0xFFFFFF);
+        graphics.drawCenteredString(this.font, this.title, this.width / 2, 8, 0xFFFFFFFF);
         int titleWidth = this.font.width(this.title);
         int separatorY = 20;
         graphics.fill(this.width / 2 - titleWidth / 2 - 10, separatorY,
@@ -317,13 +312,13 @@ public class ConfigListScreen extends Screen {
                     searchBox.getMessage().getString(),
                     searchBox.getX() + 4,
                     searchBox.getY() + 6,
-                    0x888888,
+                    0xFF888888,
                     false
             );
         }
         int searchLabelY = searchBox.getY() - 12;
         graphics.drawString(this.font, Component.translatable("gui.ezvcsurvival.search"),
-                searchBox.getX(), searchLabelY, 0xCCCCCC, false);
+                searchBox.getX(), searchLabelY, 0xFFCCCCCC, false);
         renderFooter(graphics);
         renderTooltips(graphics, mouseX, mouseY);
     }
@@ -333,9 +328,9 @@ public class ConfigListScreen extends Screen {
         int leftMargin = (this.width - Math.max(this.width - 40, MIN_WIDTH)) / 2;
         Component count = getCountComponent();
         int countWidth = this.font.width(count);
-        graphics.drawString(this.font, count, this.width - countWidth - leftMargin, footerY, 0xAAAAAA, false);
+        graphics.drawString(this.font, count, this.width - countWidth - leftMargin, footerY, 0xFFAAAAAA, false);
         Component instructions = getInstructionsComponent();
-        graphics.drawString(this.font, instructions, leftMargin, footerY, 0xCCCCCC, false);
+        graphics.drawString(this.font, instructions, leftMargin, footerY, 0xFFCCCCCC, false);
     }
 
     private Component getCountComponent() {

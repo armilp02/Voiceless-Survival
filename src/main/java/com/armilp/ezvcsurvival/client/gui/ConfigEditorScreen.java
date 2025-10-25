@@ -56,11 +56,11 @@ public class ConfigEditorScreen extends Screen {
 
         int titleY = Math.max(30, this.height / 10);
         graphics.drawCenteredString(this.font, this.title, centerX + 1, titleY + 1, 0x88000000);
-        graphics.drawCenteredString(this.font, this.title, centerX, titleY, 0xFFFFFF);
+        graphics.drawCenteredString(this.font, this.title, centerX, titleY, 0xFFFFFFFF);
 
         Component subtitle = Component.translatable("screen.ezvcsurvival.config_editor.subtitle");
         int subtitleY = titleY + 20;
-        graphics.drawCenteredString(this.font, subtitle, centerX, subtitleY, 0xCCCCCC);
+        graphics.drawCenteredString(this.font, subtitle, centerX, subtitleY, 0xFFCCCCCC);
 
         int subtitleWidth = this.font.width(subtitle);
         int lineY = subtitleY + 12;
@@ -70,11 +70,11 @@ public class ConfigEditorScreen extends Screen {
 
         Component info = Component.translatable("screen.ezvcsurvival.config_editor.info");
         int infoY = lineY + 15;
-        graphics.drawCenteredString(this.font, info, centerX, infoY, 0x888888);
+        graphics.drawCenteredString(this.font, info, centerX, infoY, 0xFF888888);
 
         Component version = ModInfo.getVersion();
         int versionWidth = this.font.width(version);
-        graphics.drawString(this.font, version, this.width - versionWidth - 10, 10, 0x666666, false);
+        graphics.drawString(this.font, version, this.width - versionWidth - 10, 10, 0xFF666666, false);
 
         super.render(graphics, mouseX, mouseY, partialTick);
     }

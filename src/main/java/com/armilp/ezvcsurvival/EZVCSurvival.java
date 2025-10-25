@@ -1,13 +1,12 @@
 package com.armilp.ezvcsurvival;
 
+import com.armilp.ezvcsurvival.commands.OpenConfigCommand;
 import com.armilp.ezvcsurvival.config.*;
 import com.armilp.ezvcsurvival.events.MobGoalInjector;
 import com.armilp.ezvcsurvival.network.EZVCNetwork;
 import com.mojang.logging.LogUtils;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.server.ServerStartingEvent;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
@@ -21,25 +20,21 @@ public class EZVCSurvival {
     public static final String MOD_ID = "ezvcsurvival";
     public static final Logger LOGGER = LogUtils.getLogger();
 
-    public EZVCSurvival() {
-        IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
+    public EZVCSurvival(FMLJavaModLoadingContext context) {
+        var modBusGroup = context.getModBusGroup();
         EZVCNetwork.registerPackets();
-        MinecraftForge.EVENT_BUS.register(MobGoalInjector.class);
+        EntityJoinLevelEvent.BUS.addListener((byte) 0, MobGoalInjector::onEntityJoin);
 
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, VoiceConfig.CONFIG, "ezvcsurvival/voices.toml");
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, SoundConfig.SPEC, "ezvcsurvival/sounds.toml");
 
 
-        modEventBus.addListener(this::commonSetup);
-        MinecraftForge.EVENT_BUS.register(this);
+        FMLCommonSetupEvent.getBus(modBusGroup).addListener(this::commonSetup);
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
         EntityVoiceConfig.init();
         GeneralSoundsConfig.init();
         SoundConfig.loadConfigs();
-    }
-    @SubscribeEvent
-    public void onServerStarting(ServerStartingEvent event) {
     }
 }
