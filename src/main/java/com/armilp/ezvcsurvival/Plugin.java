@@ -1,9 +1,11 @@
 package com.armilp.ezvcsurvival;
 
+import com.armilp.ezvcsurvival.commands.AggroVoiceEffectCommand;
 import com.armilp.ezvcsurvival.commands.SoundEffectCommand;
+import com.armilp.ezvcsurvival.config.EntityVoiceConfig;
+import com.armilp.ezvcsurvival.config.VoiceConfig;
 import com.armilp.ezvcsurvival.data.SoundData;
 import com.armilp.ezvcsurvival.events.ArmorEventHandler;
-import com.armilp.ezvcsurvival.config.EntityVoiceConfig;
 import de.maxhenkel.voicechat.api.*;
 import de.maxhenkel.voicechat.api.events.EventRegistration;
 import de.maxhenkel.voicechat.api.events.MicrophonePacketEvent;
@@ -12,7 +14,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.fml.common.Mod;
-import com.armilp.ezvcsurvival.config.VoiceConfig;
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -81,10 +82,10 @@ public class Plugin implements VoicechatPlugin {
     @Nullable
     public static BlockPos getLastSoundLocation(BlockPos mobPosition, double range, double minDb) {
         return playerSoundLocations.values().stream()
-                .filter(data -> data.getAudioLevelDb() >= minDb) // cada mob compara con su threshold
-                .filter(data -> mobPosition.distSqr(data.getPosition()) <= range * range)
-                .min(Comparator.comparingDouble(data -> mobPosition.distSqr(data.getPosition())))
-                .map(SoundData::getPosition)
+                .filter(data -> data.audioLevelDb() >= minDb)
+                .filter(data -> mobPosition.distSqr(data.position()) <= range * range)
+                .min(Comparator.comparingDouble(data -> mobPosition.distSqr(data.position())))
+                .map(SoundData::position)
                 .orElse(null);
     }
 
@@ -191,7 +192,7 @@ public class Plugin implements VoicechatPlugin {
                 }
 
                 // Death Angels
-                if (id.equals("quiet_place:death_angel") &&
+                if (id.equals("death_angels:death_angel") &&
                         (audioLevel >= VoiceConfig.DEATH_ANGELS_THRESHOLD.get()) &&
                         (!lastVoiceEffectTime.containsKey(playerUUID)
                                 || currentTime - lastVoiceEffectTime.get(playerUUID) > DEATH_ANGELS_EFFECT_COOLDOWN_MS)) {
@@ -199,7 +200,21 @@ public class Plugin implements VoicechatPlugin {
                         SoundEffectCommand.applyEffect(serverPlayer);
                         lastVoiceEffectTime.put(playerUUID, currentTime);
                         if (DEBUG) {
-                            System.out.println("[DEBUG] Efecto aplicado al jugador " + playerUUID);
+                            System.out.println("[DEBUG] Effect applied to the player " + playerUUID);
+                        }
+                    }
+                }
+
+                // Quiet Place Overman
+                if (id.equals("quiet_place:death_angel") &&
+                        (audioLevel >= VoiceConfig.QUIET_PLACE_OVERMAN_THRESHOLD.get()) &&
+                        (!lastVoiceEffectTime.containsKey(playerUUID)
+                                || currentTime - lastVoiceEffectTime.get(playerUUID) > DEATH_ANGELS_EFFECT_COOLDOWN_MS)) {
+                    if (sender.getPlayer().getPlayer() instanceof ServerPlayer serverPlayer) {
+                        AggroVoiceEffectCommand.applyEffect(serverPlayer);
+                        lastVoiceEffectTime.put(playerUUID, currentTime);
+                        if (DEBUG) {
+                            System.out.println("[DEBUG] Effect applied to the player " + playerUUID);
                         }
                     }
                 }

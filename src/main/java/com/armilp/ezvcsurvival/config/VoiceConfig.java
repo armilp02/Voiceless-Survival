@@ -18,6 +18,8 @@ public class VoiceConfig {
 
     public static final ForgeConfigSpec.DoubleValue DEATH_ANGELS_THRESHOLD;
 
+    public static final ForgeConfigSpec.DoubleValue QUIET_PLACE_OVERMAN_THRESHOLD;
+
     public static final ForgeConfigSpec.BooleanValue MOB_SPEED_BOOST_ENABLED;
 
     public static final ForgeConfigSpec.BooleanValue DEBUG;
@@ -59,6 +61,13 @@ public class VoiceConfig {
                         "You need this mod for this parameter: https://www.curseforge.com/minecraft/mc-mods/death-angels")
                 .push("death_angels_config");
         DEATH_ANGELS_THRESHOLD = BUILDER.defineInRange("death_angels_threshold", -20.0, -127.0, 0.0);
+        BUILDER.pop();
+
+        BUILDER.comment("OverMan's Quiet place Mod Config",
+                        "Defines the threshold detection (how hard the player must speak)",
+                        "You need this mod for this parameter: https://www.curseforge.com/minecraft/mc-mods/overmans-quiet-place")
+                .push("quiet_place_overman_config");
+        QUIET_PLACE_OVERMAN_THRESHOLD = BUILDER.defineInRange("quiet_place_overman_threshold", -30.0, -127.0, 0.0);
         BUILDER.pop();
 
         BUILDER.comment("Debugging Config")
