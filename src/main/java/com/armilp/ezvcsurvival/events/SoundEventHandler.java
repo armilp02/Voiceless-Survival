@@ -11,8 +11,20 @@ import net.minecraftforge.client.event.sound.PlaySoundEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
+import java.util.Iterator;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 @Mod.EventBusSubscriber(modid = "ezvcsurvival", value = Dist.CLIENT)
 public class SoundEventHandler {
+
+    private static final Map<ResourceLocation, Long> SOUND_COOLDOWNS = new ConcurrentHashMap<>(128);
+    private static final long EXPLOSION_COOLDOWN_MS = 500;
+    private static final long DEFAULT_COOLDOWN_MS = 100;
+
+    private static long lastCleanupTime = 0;
+    private static final long CLEANUP_INTERVAL_MS = 10000;
+    private static final int MAX_COOLDOWN_ENTRIES = 150;
 
     @SubscribeEvent
     public static void onPlaySound(PlaySoundEvent event) {
@@ -30,18 +42,80 @@ public class SoundEventHandler {
             return;
         }
 
-        GeneralSoundsConfig.SoundEntry cfg = soundMap.get(sound.getLocation().toString());
+        ResourceLocation soundLoc = sound.getLocation();
+        String soundId = soundLoc.toString();
+
+        GeneralSoundsConfig.SoundEntry cfg = soundMap.get(soundId);
         if (cfg == null || !cfg.enabled) {
             return;
         }
 
+        long currentTime = System.currentTimeMillis();
+
+        if (shouldApplyCooldown(soundId, cfg.is_priority)) {
+            Long lastTime = SOUND_COOLDOWNS.get(soundLoc);
+            long cooldownDuration = getCooldownDuration(soundId, cfg.is_priority);
+
+            if (lastTime != null && (currentTime - lastTime) < cooldownDuration) {
+                return;
+            }
+
+            SOUND_COOLDOWNS.put(soundLoc, currentTime);
+        }
+
+        if ((currentTime - lastCleanupTime) > CLEANUP_INTERVAL_MS) {
+            cleanupCooldowns(currentTime);
+            lastCleanupTime = currentTime;
+        }
+
         EZVCNetwork.INSTANCE.sendToServer(new GeneralSoundPacket(
-                sound.getLocation(),
+                soundLoc,
                 sound.getX(),
                 sound.getY(),
                 sound.getZ(),
                 cfg.speed_multiplier,
                 cfg.range_multiplier
         ));
+    }
+
+    private static boolean shouldApplyCooldown(String soundId, boolean isPriority) {
+        if (soundId.contains("explode") || soundId.contains("explosion")) {
+            return true;
+        }
+
+        if (isPriority) {
+            return true;
+        }
+
+        return soundId.contains("tnt");
+    }
+
+    private static long getCooldownDuration(String soundId, boolean isPriority) {
+        if (soundId.contains("explode") || soundId.contains("explosion") || soundId.contains("tnt")) {
+            return EXPLOSION_COOLDOWN_MS;
+        }
+
+        if (isPriority) {
+            return DEFAULT_COOLDOWN_MS;
+        }
+
+        return DEFAULT_COOLDOWN_MS;
+    }
+
+    private static void cleanupCooldowns(long currentTime) {
+        if (SOUND_COOLDOWNS.size() > MAX_COOLDOWN_ENTRIES) {
+            SOUND_COOLDOWNS.clear();
+            return;
+        }
+
+        Iterator<Map.Entry<ResourceLocation, Long>> iterator = SOUND_COOLDOWNS.entrySet().iterator();
+        long threshold = EXPLOSION_COOLDOWN_MS * 4;
+
+        while (iterator.hasNext()) {
+            Map.Entry<ResourceLocation, Long> entry = iterator.next();
+            if ((currentTime - entry.getValue()) > threshold) {
+                iterator.remove();
+            }
+        }
     }
 }
