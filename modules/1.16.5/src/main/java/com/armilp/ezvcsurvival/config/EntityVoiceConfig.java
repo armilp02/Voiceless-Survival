@@ -1,0 +1,310 @@
+package com.armilp.ezvcsurvival.config;
+
+import com.armilp.ezvcsurvival.EZVCSurvival;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParseException;
+import com.google.gson.reflect.TypeToken;
+import com.google.gson.stream.MalformedJsonException;
+import net.minecraft.entity.EntityClassification;
+import net.minecraft.entity.EntityType;
+import net.minecraftforge.fml.loading.FMLPaths;
+import net.minecraftforge.registries.ForgeRegistries;
+
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+
+public final class EntityVoiceConfig {
+
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final Type ROOT_TYPE = new TypeToken<RootConfig>() {
+    }.getType();
+
+    private static Map<String, EntityConfig> MONSTER_CONFIGS = new HashMap<String, EntityConfig>();
+    private static Map<String, EntityConfig> ANIMAL_CONFIGS = new HashMap<String, EntityConfig>();
+    public static RootConfig ROOT = new RootConfig();
+    private static boolean isInitialized = false;
+
+    private EntityVoiceConfig() {
+    }
+
+    public static void init() {
+        if (!isInitialized) {
+            loadOrCreate();
+            isInitialized = true;
+        } else {
+            reloadFromDisk();
+        }
+    }
+
+    private static void reloadFromDisk() {
+        Path path = getConfigPath();
+        if (Files.exists(path)) {
+            try {
+                BufferedReader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8);
+                try {
+                    RootConfig loaded = GSON.fromJson(reader, ROOT_TYPE);
+                    if (loaded != null) {
+                        ROOT = loaded;
+                        MONSTER_CONFIGS = loaded.monsters != null ? new HashMap<String, EntityConfig>(loaded.monsters) : new HashMap<String, EntityConfig>();
+                        ANIMAL_CONFIGS = loaded.animals != null ? new HashMap<String, EntityConfig>(loaded.animals) : new HashMap<String, EntityConfig>();
+                    }
+                } finally {
+                    reader.close();
+                }
+            } catch (Exception e) {
+                EZVCSurvival.LOGGER.warning("Error reloading entities_voices.json: {}");
+            }
+        }
+    }
+
+    public static Set<String> getAllEntityIds() {
+        HashSet<String> all = new HashSet<String>();
+        all.addAll(MONSTER_CONFIGS.keySet());
+        all.addAll(ANIMAL_CONFIGS.keySet());
+        return all;
+    }
+
+    public static EntityConfig getMonster(String entityId) {
+        return MONSTER_CONFIGS.get(entityId);
+    }
+
+    public static EntityConfig getAnimal(String entityId) {
+        return ANIMAL_CONFIGS.get(entityId);
+    }
+
+    public static EntityConfig get(String entityId) {
+        EntityConfig ec = MONSTER_CONFIGS.get(entityId);
+        if (ec == null) ec = ANIMAL_CONFIGS.get(entityId);
+        return ec;
+    }
+
+    public static void set(String entityId, EntityConfig value) {
+        if (MONSTER_CONFIGS.containsKey(entityId))
+            MONSTER_CONFIGS.put(entityId, value);
+        else
+            ANIMAL_CONFIGS.put(entityId, value);
+    }
+
+    public static void persist() {
+        save(getConfigPath());
+    }
+
+    private static Path getConfigPath() {
+        Path configDir = FMLPaths.CONFIGDIR.get().resolve("ezvcsurvival");
+        try {
+            Files.createDirectories(configDir);
+        } catch (IOException ignored) {
+        }
+        return configDir.resolve("entities_voices.json");
+    }
+
+    private static void loadOrCreate() {
+        Path path = getConfigPath();
+        if (Files.exists(path)) {
+            try {
+                BufferedReader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8);
+                try {
+                    RootConfig loaded = GSON.fromJson(reader, ROOT_TYPE);
+                    if (loaded != null) {
+                        ROOT = loaded;
+                        MONSTER_CONFIGS = loaded.monsters != null ? new HashMap<String, EntityConfig>(loaded.monsters) : new HashMap<String, EntityConfig>();
+                        ANIMAL_CONFIGS = loaded.animals != null ? new HashMap<String, EntityConfig>(loaded.animals) : new HashMap<String, EntityConfig>();
+                    } else {
+                        ROOT = new RootConfig();
+                        MONSTER_CONFIGS = new HashMap<String, EntityConfig>();
+                        ANIMAL_CONFIGS = new HashMap<String, EntityConfig>();
+                    }
+                } finally {
+                    reader.close();
+                }
+            } catch (JsonParseException e) {
+                EZVCSurvival.LOGGER.warning("Malformed JSON in entities_voices.json, using defaults (no backup): {}");
+                ROOT = new RootConfig();
+                MONSTER_CONFIGS = new HashMap<String, EntityConfig>();
+                ANIMAL_CONFIGS = new HashMap<String, EntityConfig>();
+                generateDefaults();
+                save(path);
+            } catch (MalformedJsonException e) {
+                EZVCSurvival.LOGGER.warning("Malformed JSON in entities_voices.json, using defaults (no backup): {}");
+                ROOT = new RootConfig();
+                MONSTER_CONFIGS = new HashMap<String, EntityConfig>();
+                ANIMAL_CONFIGS = new HashMap<String, EntityConfig>();
+                generateDefaults();
+                save(path);
+            } catch (IOException e) {
+                EZVCSurvival.LOGGER.warning("Error reading entities_voices.json, regenerating: {}");
+                ROOT = new RootConfig();
+                MONSTER_CONFIGS = new HashMap<String, EntityConfig>();
+                ANIMAL_CONFIGS = new HashMap<String, EntityConfig>();
+                generateDefaults();
+                save(path);
+            }
+        } else {
+            ROOT = new RootConfig();
+            generateDefaults();
+            save(path);
+        }
+
+        boolean addedNew = ensureAllEntitiesPresent();
+        if (addedNew) {
+            save(path);
+        }
+    }
+
+    private static boolean ensureAllEntitiesPresent() {
+        boolean added = false;
+        for (EntityType<?> type : ForgeRegistries.ENTITIES) {
+            EntityClassification category = type.getCategory();
+            if (category == EntityClassification.MISC) continue;
+            String id = Objects.requireNonNull(ForgeRegistries.ENTITIES.getKey(type)).toString();
+            if (isMonsterCategory(category)) {
+                if (!MONSTER_CONFIGS.containsKey(id)) {
+                    MONSTER_CONFIGS.put(id, EntityConfig.defaultFor(type));
+                    added = true;
+                }
+            } else if (isAnimalLikeCategory(category)) {
+                if (!ANIMAL_CONFIGS.containsKey(id)) {
+                    ANIMAL_CONFIGS.put(id, EntityConfig.defaultFor(type));
+                    added = true;
+                }
+            }
+        }
+        return added;
+    }
+
+    private static void generateDefaults() {
+        MONSTER_CONFIGS.clear();
+        ANIMAL_CONFIGS.clear();
+        for (EntityType<?> type : ForgeRegistries.ENTITIES) {
+            EntityClassification category = type.getCategory();
+            if (category == EntityClassification.MISC) continue;
+            if (isMonsterCategory(category)) {
+                MONSTER_CONFIGS.put(
+                        Objects.requireNonNull(ForgeRegistries.ENTITIES.getKey(type)).toString(),
+                        EntityConfig.defaultFor(type)
+                );
+            } else if (isAnimalLikeCategory(category)) {
+                ANIMAL_CONFIGS.put(
+                        Objects.requireNonNull(ForgeRegistries.ENTITIES.getKey(type)).toString(),
+                        EntityConfig.defaultFor(type)
+                );
+            }
+        }
+
+        putIfPresent(MONSTER_CONFIGS, "minecraft:zombie", new EntityConfig(true, 1.7, 60.0, -20.0));
+        putIfPresent(MONSTER_CONFIGS, "minecraft:skeleton", new EntityConfig(true, 1.2, 40.0, -15.0));
+        putIfPresent(MONSTER_CONFIGS, "quiet_place:death_angel", new EntityConfig(true, 1.2, 50.0, -10.0));
+        putIfPresent(ANIMAL_CONFIGS, "minecraft:cow", new EntityConfig(true, 1.5, 25.0, -18.0));
+        putIfPresent(ANIMAL_CONFIGS, "minecraft:pig", new EntityConfig(true, 1.2, 15.0, -18.0));
+    }
+
+    private static boolean isMonsterCategory(EntityClassification category) {
+        return category == EntityClassification.MONSTER;
+    }
+
+    private static boolean isAnimalLikeCategory(EntityClassification category) {
+        return category == EntityClassification.CREATURE
+                || category == EntityClassification.AMBIENT
+                || category == EntityClassification.WATER_CREATURE
+                || category == EntityClassification.WATER_AMBIENT
+                || category.name().equalsIgnoreCase("AXOLOTLS");
+    }
+
+    private static void putIfPresent(Map<String, EntityConfig> map, String id, EntityConfig config) {
+        if (map.containsKey(id)) {
+            map.put(id, config);
+        }
+    }
+
+    private static void save(Path path) {
+        if (MONSTER_CONFIGS == null || ANIMAL_CONFIGS == null) {
+            EZVCSurvival.LOGGER.warning("Cannot save null configuration maps");
+            return;
+        }
+
+        try {
+            Files.createDirectories(path.getParent());
+
+            if (ROOT == null) {
+                ROOT = new RootConfig();
+            }
+
+            ROOT.monsters = MONSTER_CONFIGS;
+            ROOT.animals = ANIMAL_CONFIGS;
+
+            BufferedWriter writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8,
+                    java.nio.file.StandardOpenOption.CREATE,
+                    java.nio.file.StandardOpenOption.WRITE,
+                    java.nio.file.StandardOpenOption.TRUNCATE_EXISTING);
+            try {
+                GSON.toJson(ROOT, ROOT_TYPE, writer);
+                writer.flush();
+            } finally {
+                writer.close();
+            }
+
+            if (VoiceConfig.DEBUG.get()) {
+                System.out.println("[EZVCSurvival] Successfully saved entities_voices.json with enabled=" + ROOT.enabled);
+            }
+
+        } catch (IOException e) {
+            EZVCSurvival.LOGGER.severe("Failed to save entities_voices.json: {}");
+        }
+    }
+
+    public static boolean isEnabled() {
+        return ROOT == null || ROOT.enabled;
+    }
+
+    public static void setEnabled(boolean enabled) {
+        if (ROOT == null) ROOT = new RootConfig();
+        ROOT.enabled = enabled;
+        persist();
+
+        if (VoiceConfig.DEBUG.get()) {
+            System.out.println("[EZVCSurvival] EntityVoiceConfig setEnabled called: " + enabled);
+        }
+    }
+
+    public static final class EntityConfig {
+        public boolean enabled;
+        public double speed;
+        public double range;
+        public double threshold;
+
+        public EntityConfig(boolean enabled, double speed, double range, double threshold) {
+            this.enabled = enabled;
+            this.speed = speed;
+            this.range = range;
+            this.threshold = threshold;
+        }
+
+        public static EntityConfig defaultFor(EntityType<?> type) {
+            double baseSpeed = 1.0;
+            double baseRange = 50.0;
+            double baseThreshold = -20.0;
+
+            if (type != null && type.getCategory() == EntityClassification.MONSTER) {
+                baseRange = 60.0;
+            }
+            return new EntityConfig(false, baseSpeed, baseRange, baseThreshold);
+        }
+    }
+
+    public static final class RootConfig {
+        public boolean enabled = true;
+        public Map<String, EntityConfig> monsters;
+        public Map<String, EntityConfig> animals;
+    }
+}
