@@ -3,7 +3,7 @@ package com.armilp.ezvcsurvival.compat.mobs.spore;
 import com.Harbinger.Spore.Sentities.BaseEntities.Calamity;
 import com.Harbinger.Spore.Sentities.BaseEntities.Infected;
 import com.Harbinger.Spore.Sentities.BaseEntities.UtilityEntity;
-import com.armilp.ezvcsurvival.Plugin;
+import com.armilp.ezvcsurvival.voicechat.Plugin;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.goal.Goal;

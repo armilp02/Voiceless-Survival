@@ -11,15 +11,21 @@ pluginManagement {
 }
 
 plugins {
-    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.5.0'
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.10.0'
 }
 
-rootProject.name = 'Multiproject Template'
-include "modules:1.16.5"
-include "modules:1.18.2"
-include "modules:1.19.2"
+rootProject.name = 'Voiceless Survival Forge'
+//include "modules:1.16.5"
+//include "modules:1.18.2"
+//include "modules:1.19.2"
 include "modules:1.20.1"
-include "modules:1.21.1"
-// include "modules:1.21.4"
-// include "modules:1.21.8"
-// include "modules:1.21.10"
+//include "modules:1.21.1"
+//include "modules:1.21.3"
+//include "modules:1.21.4"
+//include "modules:1.21.5"
+//include "modules:1.21.6"
+//include "modules:1.21.7"
+//include "modules:1.21.8"
+//include "modules:1.21.9"
+//include "modules:1.21.10"
+//include "modules:1.21.11"

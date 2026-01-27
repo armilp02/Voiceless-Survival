@@ -14,7 +14,7 @@ version = mod_version
 group = mod_group_id
 
 base {
-    archivesName = "${mod_name}-${minecraft_version}"
+    archivesName = "${mod_name}-forge-${minecraft_version}"
 }
 
 def changelogText = rootProject.file('changelog.md').exists() ? rootProject.file('changelog.md').text : "No changelog available"
@@ -23,27 +23,20 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
 mixin {
     add sourceSets.main, "${mod_id}.refmap.json"
-
     config "${mod_id}.mixins.json"
 }
 
-println "Java: ${System.getProperty('java.version')}, JVM: ${System.getProperty('java.vm.version')} (${System.getProperty('java.vendor')}), Arch: ${System.getProperty('os.arch')}"
-
 minecraft {
     mappings channel: 'official', version: minecraft_version
-
     copyIdeResources = true
 
     runs {
         configureEach {
             workingDirectory project.file('run')
-
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
-
             property 'mixin.env.remapRefMap', 'true'
             property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
-
             property 'mixin.env.disableRefMap', 'false'
 
             mods {
@@ -96,21 +89,35 @@ repositories {
             includeGroup("com.eliotlash.mclib")
         }
     }
+    maven {
+        name = 'plasmoverse-releases'
+        url = 'https://repo.plasmoverse.com/releases'
+    }
+    maven {
+        name = 'plasmoverse-snapshots'
+        url = 'https://repo.plasmoverse.com/snapshots'
+    }
 }
 
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
-    implementation fg.deobf("curse.maven:timeless-and-classics-zero-1028108:7278003")
+    implementation fg.deobf("curse.maven:timeless-and-classics-zero-1028108:7401617")
     compileOnly fg.deobf("curse.maven:fungal-infection-spore-678295:7134723")
     implementation fg.deobf("software.bernie.geckolib:geckolib-forge-${minecraft_version}:${geckolib_version}")
     implementation fg.deobf("curse.maven:vics-point-blank-961053:6012485")
-
     implementation fg.deobf("curse.maven:apocalypse-now-448410:5365233")
-    implementation "de.maxhenkel.voicechat:voicechat-api:${voicechat_api_version}"
+
+    // APIs como compileOnly
+    compileOnly "de.maxhenkel.voicechat:voicechat-api:${voicechat_api_version}"
+    //compileOnly 'su.plo.voice.api:server:2.1.8'
+
+    // Simple Voice Chat
     runtimeOnly fg.deobf("maven.modrinth:simple-voice-chat:forge-${voicechat_version}")
 
+    // Plasmo Voice - descarga el archivo JAR manualmente
+    //implementation fg.deobf("curse.maven:plasmo-voice-467028:7341439")
 }
 
 tasks.named('processResources', ProcessResources).configure {
@@ -149,8 +156,8 @@ tasks.named('jar', Jar).configure {
 modrinth {
     token = System.getenv("MODRINTH_TOKEN")
     projectId = "voiceless-survival"
-    versionName = "${mod_name} ${mod_version}"
-    versionNumber = "${mod_version}"
+    versionName = "${mod_name}-forge-${minecraft_version}"
+    versionNumber = "${minecraft_version}-${mod_version}"
     versionType = "release"
     uploadFile = jar
     gameVersions = ["${minecraft_version}"]
@@ -158,7 +165,7 @@ modrinth {
     changelog = changelogText
 
     dependencies {
-        required.project "simple-voice-chat"
+        optional.project "simple-voice-chat"
         optional.project "timeless-and-classics-zero"
         optional.project "vics-point-blank"
         optional.project "overmans-quiet-place"
@@ -171,14 +178,14 @@ tasks.register('publishCurseForge', TaskPublishCurseForge) {
     apiToken = System.getenv("CURSEFORGE_TOKEN")
 
     def mainFile = upload('1173633', jar)
-    mainFile.displayName = "${mod_name}-${mod_version}"
+    mainFile.displayName = "${mod_name}-forge-${minecraft_version}"
     mainFile.releaseType = 'release'
     mainFile.changelog = changelogText
     mainFile.changelogType = 'markdown'
     mainFile.addGameVersion("${minecraft_version}")
     mainFile.addModLoader("Forge")
 
-    mainFile.addRequirement("simple-voice-chat")
+    mainFile.addOptional("simple-voice-chat")
     mainFile.addOptional("timeless-and-classics-zero")
     mainFile.addOptional("death-angels")
     mainFile.addOptional("vics-point-blank")

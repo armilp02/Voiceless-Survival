@@ -28,23 +28,17 @@ import java.util.Map;
 public class EZVCSurvival {
     public static final String MOD_ID = "ezvcsurvival";
     public static final Logger LOGGER = LogUtils.getLogger();
+
     public EZVCSurvival() {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
         EZVCNetwork.registerPackets();
+
         if (ModList.get().isLoaded(GunMod.MOD_ID)) {
             MinecraftForge.EVENT_BUS.register(GunFireListener.class);
-            CommonAssetsManager assets = CommonAssetsManager.getInstance();
-            if (assets != null) {
-                for (Map.Entry<ResourceLocation, CommonGunIndex> entry : assets.getAllGuns()) {
-                    ResourceLocation gunId = entry.getKey();
-                    CommonGunIndex index = entry.getValue();
-                    GunFireListener.CommonGunIndexRegistry.registerCommonGunIndex(gunId, index);
-                }
-            }
         }
+
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, VoiceConfig.CONFIG, "ezvcsurvival/voices.toml");
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, SoundConfig.SPEC, "ezvcsurvival/sounds.toml");
-
 
         modEventBus.addListener(this::commonSetup);
         MinecraftForge.EVENT_BUS.register(this);
@@ -57,9 +51,38 @@ public class EZVCSurvival {
         SoundConfig.loadConfigs();
         SporeCompatLoader.init();
 
-        event.enqueueWork(ModGameEvent::register);
+        event.enqueueWork(() -> {
+            ModGameEvent.register();
+        });
     }
+
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
+        if (ModList.get().isLoaded(GunMod.MOD_ID)) {
+            registerGunIndexes();
+        }
+    }
+
+    private void registerGunIndexes() {
+        try {
+            CommonAssetsManager assets = CommonAssetsManager.getInstance();
+            if (assets == null) {
+                LOGGER.warn("[EZVCSurvival] CommonAssetsManager is null! Gun types may not be detected correctly.");
+                return;
+            }
+
+            int count = 0;
+            for (Map.Entry<ResourceLocation, CommonGunIndex> entry : assets.getAllGuns()) {
+                ResourceLocation gunId = entry.getKey();
+                CommonGunIndex index = entry.getValue();
+                GunFireListener.CommonGunIndexRegistry.registerCommonGunIndex(gunId, index);
+                count++;
+                LOGGER.debug("[EZVCSurvival] Registered gun: {} -> type: {}", gunId, index.getType());
+            }
+
+            LOGGER.info("[EZVCSurvival] Successfully registered {} gun indexes from TaCZ", count);
+        } catch (Exception e) {
+            LOGGER.error("[EZVCSurvival] Failed to register gun indexes", e);
+        }
     }
 }

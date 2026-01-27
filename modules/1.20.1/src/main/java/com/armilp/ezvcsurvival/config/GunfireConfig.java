@@ -23,8 +23,7 @@ import java.util.Objects;
 public final class GunfireConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final Type ROOT_TYPE = new TypeToken<Root>() {
-    }.getType();
+    private static final Type ROOT_TYPE = new TypeToken<Root>() {}.getType();
 
     public static Root ROOT = new Root();
     private static boolean isInitialized = false;
@@ -51,6 +50,10 @@ public final class GunfireConfig {
                     if (loaded != null) {
                         ROOT = loaded;
                         if (ROOT.mobs == null) ROOT.mobs = new HashMap<>();
+
+                        if (SoundConfig.isDebugEnabled()) {
+                            EZVCSurvival.LOGGER.info("[GunfireConfig] Reloaded {} mob reactions", ROOT.mobs.size());
+                        }
                     }
                 }
             } catch (Exception e) {
@@ -88,9 +91,14 @@ public final class GunfireConfig {
                 try (java.io.StringReader r = new java.io.StringReader(content)) {
                     Root loaded = GSON.fromJson(r, ROOT_TYPE);
                     ROOT = loaded != null ? loaded : defaultRoot();
+
+                    if (SoundConfig.isDebugEnabled()) {
+                        EZVCSurvival.LOGGER.info("[GunfireConfig] Loaded {} mob reactions from file",
+                                ROOT.mobs != null ? ROOT.mobs.size() : 0);
+                    }
                 }
             } catch (MalformedJsonException e) {
-                EZVCSurvival.LOGGER.warn("Malformed JSON in gunfire.json, using defaults (no backup): {}", e.getMessage());
+                EZVCSurvival.LOGGER.warn("Malformed JSON in gunfire.json, using defaults: {}", e.getMessage());
                 ROOT = defaultRoot();
                 isNewFile = true;
                 save(path);
@@ -104,8 +112,19 @@ public final class GunfireConfig {
             ROOT = defaultRoot();
         }
 
-        boolean changed = ensureAllPresent(isNewFile);
-        if (changed) save(path);
+        if (SoundConfig.ENABLE_GUNFIRE.get()) {
+            boolean changed = ensureAllPresent(isNewFile);
+            if (changed) {
+                save(path);
+                if (SoundConfig.isDebugEnabled()) {
+                    EZVCSurvival.LOGGER.info("[GunfireConfig] Auto-generation enabled: added new entities");
+                }
+            }
+        } else {
+            if (SoundConfig.isDebugEnabled()) {
+                EZVCSurvival.LOGGER.info("[GunfireConfig] Auto-generation disabled: using existing entities only");
+            }
+        }
     }
 
     private static boolean ensureAllPresent(boolean isNewFile) {
@@ -162,8 +181,9 @@ public final class GunfireConfig {
                 w.flush();
             }
 
-            if (VoiceConfig.DEBUG.get()) {
-                System.out.println("[EZVCSurvival] Successfully saved gunfire.json");
+            if (SoundConfig.isDebugEnabled()) {
+                EZVCSurvival.LOGGER.info("[GunfireConfig] Saved config with {} entries",
+                        ROOT.mobs != null ? ROOT.mobs.size() : 0);
             }
 
         } catch (IOException e) {

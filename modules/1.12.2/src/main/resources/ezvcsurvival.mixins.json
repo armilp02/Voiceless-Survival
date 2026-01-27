@@ -1,0 +1,9 @@
+{
+  "required": true,
+  "package": "com.armilp.ezvcsurvival.mixins",
+  "refmap": "ezvcsurvival.refmap.json",
+  "compatibilityLevel": "JAVA_8",
+  "mixins": [
+  ],
+  "minVersion": "0.8"
+}

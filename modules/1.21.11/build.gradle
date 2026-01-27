@@ -1,0 +1,256 @@
+import net.darkhax.curseforgegradle.TaskPublishCurseForge
+
+plugins {
+    id 'eclipse'
+    id 'idea'
+    id 'maven-publish'
+    id 'net.minecraftforge.gradle'
+    id 'com.modrinth.minotaur'
+    id 'org.spongepowered.mixin'
+    id 'net.darkhax.curseforgegradle'
+}
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = "${mod_name}-${minecraft_version}-forge"
+}
+
+def changelogText = rootProject.file('changelog.md').exists() ? rootProject.file('changelog.md').text : "No changelog available"
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+mixin {
+    add sourceSets.main, "${mod_id}.refmap.json"
+    config "${mod_id}.mixins.json"
+}
+
+println "Java: ${System.getProperty('java.version')}, JVM: ${System.getProperty('java.vm.version')} (${System.getProperty('java.vendor')}), Arch: ${System.getProperty('os.arch')}"
+
+minecraft {
+    mappings channel: 'official', version: minecraft_version
+
+    reobf = false
+
+    copyIdeResources = true
+
+    runs {
+        configureEach {
+            workingDirectory project.file('run')
+
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            property 'eventbus.api.strictRuntimeChecks', 'true'
+
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
+
+            arg "-mixin.config=${mod_id}.mixins.json"
+            mods {
+                create(mod_id) {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        client {
+            property 'forge.enabledGameTestNamespaces', mod_id
+        }
+
+        server {
+            property 'forge.enabledGameTestNamespaces', mod_id
+            args '--nogui'
+        }
+
+        gameTestServer {
+            property 'forge.enabledGameTestNamespaces', mod_id
+        }
+
+        data {
+            workingDirectory project.file('run-data')
+
+            args '--mod', mod_id, '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
+        }
+    }
+}
+
+sourceSets.main.resources {
+    srcDir 'src/generated/resources'
+}
+
+repositories {
+    mavenCentral()
+
+    maven {
+        name = 'Forge'
+        url = 'https://maven.minecraftforge.net'
+    }
+
+    maven {
+        name = 'Minecraft'
+        url = 'https://libraries.minecraft.net'
+    }
+
+    maven {
+        name = 'Sponge'
+        url = 'https://repo.spongepowered.org/repository/maven-public'
+    }
+
+    maven {
+        name = 'MaxHenkel'
+        url = 'https://maven.maxhenkel.de/repository/public'
+    }
+
+    maven {
+        name = "Modrinth"
+        url = "https://api.modrinth.com/maven"
+        content {
+            includeGroup "maven.modrinth"
+        }
+    }
+
+    maven {
+        name = "Curse Maven"
+        url = "https://www.cursemaven.com"
+        content {
+            includeGroup "curse.maven"
+        }
+    }
+
+    maven {
+        name = 'GeckoLib'
+        url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/'
+        content {
+            includeGroupByRegex("software\\.bernie.*")
+            includeGroup("com.eliotlash.mclib")
+        }
+    }
+
+    maven {
+        name = "Illusive Soulworks"
+        url = "https://maven.theillusivec4.top/"
+    }
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+
+    annotationProcessor 'net.minecraftforge:eventbus-validator:7.0-beta.12'
+
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+
+    compileOnly fg.deobf("de.maxhenkel.voicechat:voicechat-api:${voicechat_api_version}")
+    runtimeOnly fg.deobf("maven.modrinth:simple-voice-chat:forge-${voicechat_version}")
+}
+
+tasks.named('processResources', ProcessResources).configure {
+    var replaceProperties = [
+            minecraft_version: minecraft_version,
+            minecraft_version_range: mc_version_range,
+            forge_version: forge_version,
+            forge_version_range: forge_version_range,
+            loader_version_range: loader_version_range,
+            mod_id: mod_id,
+            mod_name: mod_name,
+            mod_license: mod_license,
+            mod_version: mod_version,
+            mod_authors: mod_authors,
+            mod_description: mod_description,
+            pack_version: 34
+    ]
+    inputs.properties replaceProperties
+
+    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
+        expand replaceProperties + [project: project]
+    }
+}
+
+tasks.named('jar', Jar).configure {
+    manifest {
+        attributes([
+                'Specification-Title'     : mod_id,
+                'Specification-Vendor'    : mod_authors,
+                'Specification-Version'   : mod_version,
+                'Implementation-Title'    : project.name,
+                'Implementation-Version'  : project.jar.archiveVersion,
+                'Implementation-Vendor'   : mod_authors,
+                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+        ])
+        attributes['MixinConfigs'] = "${mod_id}.mixins.json"
+    }
+}
+
+modrinth {
+    token = System.getenv("MODRINTH_TOKEN")
+    projectId = "voiceless-survival"
+    versionName = "${mod_name} ${mod_version}"
+    versionNumber = "${mod_version}-${minecraft_version}"
+    versionType = "release"
+    uploadFile = jar
+    gameVersions = ["${minecraft_version}"]
+    loaders = ["forge"]
+    changelog = changelogText
+
+    dependencies {
+        required.project "simple-voice-chat"
+    }
+}
+
+tasks.register('publishCurseForge', TaskPublishCurseForge) {
+    dependsOn jar
+
+    apiToken = System.getenv("CURSEFORGE_TOKEN")
+
+    def mainFile = upload('1173633', jar)
+    mainFile.displayName = "${mod_name}-${mod_version}"
+    mainFile.releaseType = 'release'
+    mainFile.changelog = changelogText
+    mainFile.changelogType = 'markdown'
+    mainFile.addGameVersion("${minecraft_version}")
+    mainFile.addModLoader("Forge")
+
+    mainFile.addRequirement("simple-voice-chat")
+}
+
+task publishModdedSite {
+    group = 'publishing'
+    description = "Publish ${mod_name} ${minecraft_version} to Modrinth and CurseForge"
+    dependsOn 'build', 'publishCurseForge', 'modrinth'
+}
+
+publishing {
+    publications {
+        register('mavenJava', MavenPublication) {
+            artifactId base.archivesName.get()
+            artifact jar
+            fg.component(it)
+        }
+    }
+    repositories {
+        maven {
+            url "file://" + System.getenv("local_maven")
+        }
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 21
+}
+
+idea.module {
+    downloadJavadoc = true
+    downloadSources = true
+}
+
+eclipse {
+    synchronizationTasks 'genIntellijRuns'
+}
+
+// Merge resources and classes into the same directory
+sourceSets.each {
+    def dir = layout.buildDirectory.dir("sourcesSets/$it.name")
+    it.output.resourcesDir = dir
+    it.java.destinationDirectory = dir
+}

@@ -14,7 +14,7 @@ version = mod_version
 group = mod_group_id
 
 base {
-    archivesName = "${mod_name}-${minecraft_version}"
+    archivesName = "${mod_name}-${minecraft_version}-forge"
 }
 
 def changelogText = rootProject.file('changelog.md').exists() ? rootProject.file('changelog.md').text : "No changelog available"
@@ -160,9 +160,7 @@ modrinth {
 
     dependencies {
         required.project "simple-voice-chat"
-        optional.project "timeless-and-classics-zero"
         optional.project "vics-point-blank"
-        optional.project "overmans-quiet-place"
     }
 }
 
@@ -173,14 +171,13 @@ tasks.register('publishCurseForge', TaskPublishCurseForge) {
 
     def mainFile = upload('1173633', jar)
     mainFile.displayName = "${mod_name}-${mod_version}"
-    mainFile.releaseType = 'beta'
+    mainFile.releaseType = 'release'
     mainFile.changelog = changelogText
     mainFile.changelogType = 'markdown'
     mainFile.addGameVersion("${minecraft_version}")
     mainFile.addModLoader("Forge")
 
     mainFile.addRequirement("simple-voice-chat")
-    mainFile.addOptional("timeless-and-classics-zero")
 }
 
 task publishModdedSite {

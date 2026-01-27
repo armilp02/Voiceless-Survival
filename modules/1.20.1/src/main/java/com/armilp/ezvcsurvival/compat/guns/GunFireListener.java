@@ -1,5 +1,6 @@
 package com.armilp.ezvcsurvival.compat.guns;
 
+import com.armilp.ezvcsurvival.EZVCSurvival;
 import com.armilp.ezvcsurvival.commands.SoundEffectCommand;
 import com.armilp.ezvcsurvival.config.SoundConfig;
 import com.armilp.ezvcsurvival.data.GunshotData;
@@ -41,32 +42,47 @@ public class GunFireListener {
         Vec3 shooterPos = shooter.position();
 
         GunTabType gunType = GunTabType.PISTOL;
+
         if (gun != null) {
             try {
                 ResourceLocation gunId = gun.getGunId(gunStack);
+                String gunIdStr = gunId.toString().toLowerCase();
+
+                if (SoundConfig.isDebugEnabled()) {
+                    EZVCSurvival.LOGGER.info("[GunFire] Gun fired: {}", gunId);
+                }
+
                 CommonGunIndex commonGunIndex = CommonGunIndexRegistry.getCommonGunIndex(gunId);
+
                 if (commonGunIndex != null) {
                     String typeStr = commonGunIndex.getType();
-                    gunType = GunTabType.valueOf(typeStr.toUpperCase());
-                } else {
-                    String gunIdStr = gunId.toString().toLowerCase();
-                    if (gunIdStr.contains("sniper")) {
-                        gunType = GunTabType.SNIPER;
-                    } else if (gunIdStr.contains("rifle")) {
-                        gunType = GunTabType.RIFLE;
-                    } else if (gunIdStr.contains("shotgun")) {
-                        gunType = GunTabType.SHOTGUN;
-                    } else if (gunIdStr.contains("smg")) {
-                        gunType = GunTabType.SMG;
-                    } else if (gunIdStr.contains("rpg")) {
-                        gunType = GunTabType.RPG;
-                    } else if (gunIdStr.contains("mg")) {
-                        gunType = GunTabType.MG;
-                    } else {
-                        gunType = GunTabType.PISTOL;
+                    try {
+                        gunType = GunTabType.valueOf(typeStr.toUpperCase());
+                        if (SoundConfig.isDebugEnabled()) {
+                            EZVCSurvival.LOGGER.info("[GunFire] ✓ Type from registry: {}", gunType);
+                        }
+                    } catch (IllegalArgumentException e) {
+                        EZVCSurvival.LOGGER.warn("[GunFire] Invalid gun type in index: {}", typeStr);
+                        gunType = inferGunTypeFromId(gunIdStr);
                     }
+                } else {
+                    if (SoundConfig.isDebugEnabled()) {
+                        EZVCSurvival.LOGGER.info("[GunFire] No index found, inferring from ID...");
+                    }
+                    gunType = inferGunTypeFromId(gunIdStr);
                 }
+
+                if (SoundConfig.isDebugEnabled()) {
+                    String gunTypeLower = gunType.name().toLowerCase();
+                    double speedMult = SoundConfig.getSpeedMultiplier(gunTypeLower);
+                    double rangeMult = SoundConfig.getRangeMultiplier(gunTypeLower);
+
+                    EZVCSurvival.LOGGER.info("[GunFire] Final: {} -> Type: {}, Speed: {}x, Range: {}x",
+                            gunId, gunType, speedMult, rangeMult);
+                }
+
             } catch (Exception e) {
+                EZVCSurvival.LOGGER.error("[GunFire] Error determining gun type for {}", gun.getGunId(gunStack), e);
                 gunType = GunTabType.PISTOL;
             }
         }
@@ -74,11 +90,39 @@ public class GunFireListener {
         if (shooter instanceof ServerPlayer serverPlayer) {
             SoundEffectCommand.applyEffect(serverPlayer);
         }
+
         gunshotPositions.add(new GunshotData(shooterPos, System.currentTimeMillis(), gunType));
     }
 
-    private static boolean useSilenceSound(LivingEntity entity, ItemStack gunStack) {
+    private static GunTabType inferGunTypeFromId(String gunIdStr) {
+        GunTabType result;
 
+        if (gunIdStr.contains("sniper") || gunIdStr.contains("awp") || gunIdStr.contains("barrett")) {
+            result = GunTabType.SNIPER;
+        } else if (gunIdStr.contains("rifle") || gunIdStr.contains("ak") || gunIdStr.contains("m4") ||
+                gunIdStr.contains("scar") || gunIdStr.contains("hk416")) {
+            result = GunTabType.RIFLE;
+        } else if (gunIdStr.contains("shotgun") || gunIdStr.contains("spas") || gunIdStr.contains("m870")) {
+            result = GunTabType.SHOTGUN;
+        } else if (gunIdStr.contains("smg") || gunIdStr.contains("mp5") || gunIdStr.contains("ump") ||
+                gunIdStr.contains("vector") || gunIdStr.contains("uzi")) {
+            result = GunTabType.SMG;
+        } else if (gunIdStr.contains("rpg") || gunIdStr.contains("rocket") || gunIdStr.contains("launcher")) {
+            result = GunTabType.RPG;
+        } else if (gunIdStr.contains("mg") || gunIdStr.contains("lmg") || gunIdStr.contains("m249") ||
+                gunIdStr.contains("minigun")) {
+            result = GunTabType.MG;
+        } else {
+            result = GunTabType.PISTOL;
+        }
+
+        if (SoundConfig.isDebugEnabled()) {
+            EZVCSurvival.LOGGER.info("[GunFire] Inferred type from '{}': {}", gunIdStr, result);
+        }
+        return result;
+    }
+
+    private static boolean useSilenceSound(LivingEntity entity, ItemStack gunStack) {
         IGunOperator operator = IGunOperator.fromLivingEntity(entity);
         if (operator != null) {
             AttachmentCacheProperty cacheProperty = operator.getCacheProperty();

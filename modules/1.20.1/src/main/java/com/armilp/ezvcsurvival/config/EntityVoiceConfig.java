@@ -27,8 +27,7 @@ import java.util.Set;
 public final class EntityVoiceConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final Type ROOT_TYPE = new TypeToken<RootConfig>() {
-    }.getType();
+    private static final Type ROOT_TYPE = new TypeToken<RootConfig>() {}.getType();
 
     private static Map<String, EntityConfig> MONSTER_CONFIGS = new HashMap<>();
     private static Map<String, EntityConfig> ANIMAL_CONFIGS = new HashMap<>();
@@ -113,13 +112,20 @@ public final class EntityVoiceConfig {
                     ROOT = loaded;
                     MONSTER_CONFIGS = loaded.monsters != null ? new HashMap<>(loaded.monsters) : new HashMap<>();
                     ANIMAL_CONFIGS = loaded.animals != null ? new HashMap<>(loaded.animals) : new HashMap<>();
+
+                    if (VoiceConfig.DEBUG.get()) {
+                        EZVCSurvival.LOGGER.info("[EntityVoiceConfig] Loaded {} monsters, {} animals from file",
+                                MONSTER_CONFIGS.size(), ANIMAL_CONFIGS.size());
+                    }
                 } else {
                     ROOT = new RootConfig();
                     MONSTER_CONFIGS = new HashMap<>();
                     ANIMAL_CONFIGS = new HashMap<>();
+                    generateDefaults();
+                    save(path);
                 }
             } catch (JsonParseException | MalformedJsonException e) {
-                EZVCSurvival.LOGGER.warn("Malformed JSON in entities_voices.json, using defaults (no backup): {}", e.getMessage());
+                EZVCSurvival.LOGGER.warn("Malformed JSON in entities_voices.json, using defaults: {}", e.getMessage());
                 ROOT = new RootConfig();
                 MONSTER_CONFIGS = new HashMap<>();
                 ANIMAL_CONFIGS = new HashMap<>();
@@ -139,9 +145,19 @@ public final class EntityVoiceConfig {
             save(path);
         }
 
-        boolean addedNew = ensureAllEntitiesPresent();
-        if (addedNew) {
-            save(path);
+        // Only add new entities if generation is enabled
+        if (VoiceConfig.ENABLE_ENTITY_VOICE.get()) {
+            boolean addedNew = ensureAllEntitiesPresent();
+            if (addedNew) {
+                save(path);
+                if (VoiceConfig.DEBUG.get()) {
+                    EZVCSurvival.LOGGER.info("[EntityVoiceConfig] Auto-generation enabled: added new entities");
+                }
+            }
+        } else {
+            if (VoiceConfig.DEBUG.get()) {
+                EZVCSurvival.LOGGER.info("[EntityVoiceConfig] Auto-generation disabled: using existing entities only");
+            }
         }
     }
 
@@ -169,6 +185,7 @@ public final class EntityVoiceConfig {
     private static void generateDefaults() {
         MONSTER_CONFIGS.clear();
         ANIMAL_CONFIGS.clear();
+
         for (EntityType<?> type : ForgeRegistries.ENTITY_TYPES) {
             MobCategory category = type.getCategory();
             if (category == MobCategory.MISC) continue;
@@ -226,7 +243,6 @@ public final class EntityVoiceConfig {
         }
     }
 
-
     private static void save(Path path) {
         if (MONSTER_CONFIGS == null || ANIMAL_CONFIGS == null) {
             EZVCSurvival.LOGGER.warn("Cannot save null configuration maps");
@@ -252,7 +268,7 @@ public final class EntityVoiceConfig {
             }
 
             if (VoiceConfig.DEBUG.get()) {
-                System.out.println("[EZVCSurvival] Successfully saved entities_voices.json with enabled=" + ROOT.enabled);
+                EZVCSurvival.LOGGER.info("[EntityVoiceConfig] Saved config with enabled={}", ROOT.enabled);
             }
 
         } catch (IOException e) {
@@ -270,7 +286,7 @@ public final class EntityVoiceConfig {
         persist();
 
         if (VoiceConfig.DEBUG.get()) {
-            System.out.println("[EZVCSurvival] EntityVoiceConfig setEnabled called: " + enabled);
+            EZVCSurvival.LOGGER.info("[EntityVoiceConfig] setEnabled: {}", enabled);
         }
     }
 
@@ -312,19 +328,22 @@ public final class EntityVoiceConfig {
             return config;
         }
 
-        config = new EntityConfig(
-                true,
-                1.0,
-                60.0,
-                -20.0
-        );
+        // Only create if generation is enabled
+        if (!VoiceConfig.ENABLE_ENTITY_VOICE.get()) {
+            if (VoiceConfig.DEBUG.get()) {
+                EZVCSurvival.LOGGER.info("[EntityVoiceConfig] Entity '{}' not found and auto-generation disabled", entityId);
+            }
+            return null;
+        }
 
+        config = new EntityConfig(true, 1.0, 60.0, -20.0);
         set(entityId, config);
         persist();
 
-        System.out.println("[EZVCSurvival] Created default voice config for: " + entityId);
+        if (VoiceConfig.DEBUG.get()) {
+            EZVCSurvival.LOGGER.info("[EntityVoiceConfig] Created default config for: {}", entityId);
+        }
 
         return config;
     }
-
 }

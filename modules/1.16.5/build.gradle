@@ -98,7 +98,6 @@ dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 
     implementation fg.deobf("curse.maven:timeless-and-classic-guns-tac-491264:5298174")
-    implementation fg.deobf("curse.maven:mrcrayfishs-gun-mod-289479:3830458")
     implementation fg.deobf("curse.maven:obfuscate-289380:3740120")
     implementation "de.maxhenkel.voicechat:voicechat-api:${voicechat_api_version}"
     runtimeOnly fg.deobf("maven.modrinth:simple-voice-chat:forge-${voicechat_version}")
@@ -190,7 +189,6 @@ modrinth {
 
 tasks.register('publishModdedSite') {
     group = 'publishing'
-    description = "Publish ${mod_name} ${minecraft_version} to Modrinth and CurseForge"
     dependsOn 'build', 'curseforge', 'modrinth'
 }
 

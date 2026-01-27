@@ -1,7 +1,5 @@
 package com.armilp.ezvcsurvival;
 
-import com.armilp.ezvcsurvival.commands.AggroVoiceEffectCommand;
-import com.armilp.ezvcsurvival.commands.SoundEffectCommand;
 import com.armilp.ezvcsurvival.config.EntityVoiceConfig;
 import com.armilp.ezvcsurvival.config.VoiceConfig;
 import com.armilp.ezvcsurvival.data.SoundData;
@@ -24,15 +22,12 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 @ForgeVoicechatPlugin
-@Mod.EventBusSubscriber(modid = "ezvcsurvival")
 public class Plugin implements VoicechatPlugin {
 
     private boolean DEBUG;
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private static final Map<UUID, SoundData> playerSoundLocations = new ConcurrentHashMap<>();
-    private static final Map<UUID, Long> lastVoiceEffectTime = new ConcurrentHashMap<>();
     private static final Map<UUID, Long> lastSculkVibrationTime = new ConcurrentHashMap<>();
-    private static final long DEATH_ANGELS_EFFECT_COOLDOWN_MS = 3000;
     private static final long SCULK_VIBRATION_COOLDOWN_MS = 500;
     private static VoicechatApi voicechatApi;
 
@@ -188,33 +183,6 @@ public class Plugin implements VoicechatPlugin {
                             "Speed: " + speed + " | " +
                             "Position: " + precisePos);
                 }
-
-                if (id.equals("death_angels:death_angel") &&
-                        (audioLevel >= VoiceConfig.DEATH_ANGELS_THRESHOLD.get()) &&
-                        (!lastVoiceEffectTime.containsKey(playerUUID)
-                                || currentTime - lastVoiceEffectTime.get(playerUUID) > DEATH_ANGELS_EFFECT_COOLDOWN_MS)) {
-                    if (sender.getPlayer().getPlayer() instanceof ServerPlayer serverPlayer) {
-                        SoundEffectCommand.applyEffect(serverPlayer);
-                        lastVoiceEffectTime.put(playerUUID, currentTime);
-                        if (DEBUG) {
-                            System.out.println("[DEBUG] Effect applied to the player " + playerUUID);
-                        }
-                    }
-                }
-
-                if (id.equals("quiet_place:death_angel") &&
-                        (audioLevel >= VoiceConfig.QUIET_PLACE_OVERMAN_THRESHOLD.get()) &&
-                        (!lastVoiceEffectTime.containsKey(playerUUID)
-                                || currentTime - lastVoiceEffectTime.get(playerUUID) > DEATH_ANGELS_EFFECT_COOLDOWN_MS)) {
-                    if (sender.getPlayer().getPlayer() instanceof ServerPlayer serverPlayer) {
-                        AggroVoiceEffectCommand.applyEffect(serverPlayer);
-                        lastVoiceEffectTime.put(playerUUID, currentTime);
-                        if (DEBUG) {
-                            System.out.println("[DEBUG] Effect applied to the player " + playerUUID);
-                        }
-                    }
-                }
-            } else {
                 if (DEBUG) {
                     System.out.println("[DEBUG] Intensity/range too low for " + id + ": "
                             + audioLevel + " dB | " + distanceVolume);

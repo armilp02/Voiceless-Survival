@@ -2,14 +2,8 @@
 <span style="color:orange; font-size:16px;">Before updating to this version, make a backup of your previous configuration.</span>
 ---
 
-**V2.0.0**
+**V2.0.1** (Small update)
 
 🔄️ **Changes:**
-- Fixed *Fungal Infection: Spore* compatibility issue with voice detection for some additional mobs.
-- The default speed values were generally changed to 1.0.
-- Fixed severe lag spikes caused by GeneralSoundGoal.
-- Fixed crash server side targetsound issue.
-- Fixed config resetting randomly.
-
-✅ **Added:**
-- Sculk activation when the player talks (threshold and frequency configurable on `voices.toml`).
+- Fixed TACZ Gun Modifiers (`sounds.toml`)
+- Add minor config to disable configs auto-generation

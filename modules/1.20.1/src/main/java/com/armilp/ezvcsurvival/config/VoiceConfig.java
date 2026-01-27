@@ -30,7 +30,22 @@ public class VoiceConfig {
 
     public static final ForgeConfigSpec.BooleanValue DEBUG;
 
+    // Auto-generation toggle for entities_voices.json
+    public static final ForgeConfigSpec.BooleanValue ENABLE_ENTITY_VOICE;
+
     static {
+        BUILDER.comment("Debug Config")
+                .push("debugging");
+        DEBUG = BUILDER.define("debug", false);
+        BUILDER.pop();
+
+        BUILDER.comment("Entity Voice Config Generation",
+                        "If true, automatically adds new entities to entities_voices.json when detected",
+                        "If false, only uses entities already in the file (allows manual control)")
+                .push("entity_voice_generation");
+        ENABLE_ENTITY_VOICE = BUILDER.define("enable_generation", true);
+        BUILDER.pop();
+
         BUILDER.comment("Whisper Config",
                         "Multipliers that affect the detection range and movement speed when the player is whispering.")
                 .push("whisper_configs");
@@ -87,11 +102,6 @@ public class VoiceConfig {
                         "You need this mod for this parameter: https://www.curseforge.com/minecraft/mc-mods/overmans-quiet-place")
                 .push("quiet_place_overman_config");
         QUIET_PLACE_OVERMAN_THRESHOLD = BUILDER.defineInRange("quiet_place_overman_threshold", -30.0, -127.0, 0.0);
-        BUILDER.pop();
-
-        BUILDER.comment("Debugging Config")
-                .push("debugging");
-        DEBUG = BUILDER.define("debug", false);
         BUILDER.pop();
 
         CONFIG = BUILDER.build();

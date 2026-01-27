@@ -1,6 +1,6 @@
 package com.armilp.ezvcsurvival.goals;
 
-import com.armilp.ezvcsurvival.Plugin;
+import com.armilp.ezvcsurvival.voicechat.Plugin;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.ai.goal.Goal;

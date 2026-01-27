@@ -1,0 +1,24 @@
+[
+  {
+    "modid": "ezvcsurvival",
+    "name": "VoicelessSurvival",
+    "description": "Un mod que mejora la experiencia de supervivencia en Minecraft.",
+    "version": "2.0.0",
+    "mcversion": "1.12.2",
+    "authorList": ["armilp"],
+    "credits": "armilp",
+    "screenshots": [],
+    "dependencies": [
+      {
+        "modid": "forge",
+        "versionRange": "[14.23.5.2855,)",
+        "side": "BOTH"
+      },
+      {
+        "modid": "voicechat",
+        "versionRange": "[1.12.2-2.6.0]",
+        "side": "BOTH"
+      }
+    ]
+  }
+]

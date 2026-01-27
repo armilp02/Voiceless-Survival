@@ -2,9 +2,8 @@ plugins {
     id 'net.minecraftforge.gradle' version '[6.0,6.2)' apply false
     id 'org.spongepowered.mixin' version '0.7-SNAPSHOT' apply false
     id 'com.modrinth.minotaur' version '2.+' apply false
-    id 'net.darkhax.curseforgegradle' version '1.1.15' apply false
+    id 'net.darkhax.curseforgegradle' version '1.1.18' apply false
 }
-
 
 subprojects {
     apply plugin: 'java'
@@ -19,52 +18,15 @@ subprojects {
             url = 'https://repo.spongepowered.org/repository/maven-public/'
         }
     }
-}
 
-task publishAllModrinth {
-    group = 'publishing'
-    description = 'Publish all Forge subprojects to Modrinth'
-
-    dependsOn subprojects.findAll { it.plugins.hasPlugin('com.modrinth.minotaur') }.collect { it.tasks.modrinth }
-
-    doFirst {
-        if (System.getenv("MODRINTH_TOKEN") == null) {
-            throw new GradleException("MODRINTH_TOKEN environment variable is not set")
-        }
-        println("Publishing all subprojects to Modrinth...")
-    }
-
-    doLast {
-        println("Successfully published all subprojects to Modrinth")
-    }
-}
-
-task publishAllCurseForge {
-    group = 'publishing'
-    description = 'Publish all Forge subprojects to CurseForge'
-
-    dependsOn subprojects.findAll { it.tasks.findByName('publishCurseForge') != null }.collect { it.tasks.publishCurseForge }
-
-    doFirst {
-        if (System.getenv("CURSEFORGE_TOKEN") == null) {
-            println("Warning: CURSEFORGE_TOKEN not set.")
-        } else {
-            println("Preparing CurseForge publication...")
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(21)
         }
     }
 
-    doLast {
-        println("CurseForge process completed")
-    }
-}
-
-task publishAllModdedSites {
-    group = 'publishing'
-    description = 'Publish all subprojects to Modrinth and CurseForge'
-
-    dependsOn 'publishAllModrinth', 'publishAllCurseForge'
-
-    doLast {
-        println("All subprojects have been published successfully")
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        options.release = 21
     }
 }

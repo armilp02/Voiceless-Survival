@@ -52,6 +52,11 @@ public final class GeneralSoundsConfig {
                     ROOT = loaded;
                     if (ROOT.mobs == null) ROOT.mobs = new HashMap<>();
                     if (ROOT.sounds == null) ROOT.sounds = new HashMap<>();
+
+                    if (SoundConfig.isDebugEnabled()) {
+                        EZVCSurvival.LOGGER.info("[GeneralSoundsConfig] Reloaded {} mobs, {} sounds",
+                                ROOT.mobs.size(), ROOT.sounds.size());
+                    }
                 }
             } catch (Exception e) {
                 EZVCSurvival.LOGGER.warn("Error reloading generalsounds.json: {}", e.getMessage());
@@ -232,6 +237,11 @@ public final class GeneralSoundsConfig {
                     ROOT = loaded;
                     if (ROOT.mobs == null) ROOT.mobs = new HashMap<>();
                     if (ROOT.sounds == null) ROOT.sounds = new HashMap<>();
+
+                    if (SoundConfig.isDebugEnabled()) {
+                        EZVCSurvival.LOGGER.info("[GeneralSoundsConfig] Loaded {} mobs, {} sounds from file",
+                                ROOT.mobs.size(), ROOT.sounds.size());
+                    }
                 } else {
                     ROOT = new Root();
                     generateDefaults();
@@ -254,9 +264,19 @@ public final class GeneralSoundsConfig {
             save(path);
         }
 
-        boolean addedNew = ensureNewEntitiesOnly();
-        if (addedNew) {
-            save(path);
+        // Only add new entities/sounds if generation is enabled
+        if (SoundConfig.ENABLE_GENERAL_SOUNDS.get()) {
+            boolean addedNew = ensureNewEntitiesOnly();
+            if (addedNew) {
+                save(path);
+                if (SoundConfig.isDebugEnabled()) {
+                    EZVCSurvival.LOGGER.info("[GeneralSoundsConfig] Auto-generation enabled: added new entries");
+                }
+            }
+        } else {
+            if (SoundConfig.isDebugEnabled()) {
+                EZVCSurvival.LOGGER.info("[GeneralSoundsConfig] Auto-generation disabled: using existing entries only");
+            }
         }
     }
 
@@ -374,6 +394,12 @@ public final class GeneralSoundsConfig {
                     java.nio.file.StandardOpenOption.TRUNCATE_EXISTING)) {
                 GSON.toJson(ROOT, ROOT_TYPE, writer);
                 writer.flush();
+            }
+
+            if (SoundConfig.isDebugEnabled()) {
+                EZVCSurvival.LOGGER.info("[GeneralSoundsConfig] Saved config with {} mobs, {} sounds",
+                        ROOT.mobs != null ? ROOT.mobs.size() : 0,
+                        ROOT.sounds != null ? ROOT.sounds.size() : 0);
             }
 
         } catch (IOException e) {
