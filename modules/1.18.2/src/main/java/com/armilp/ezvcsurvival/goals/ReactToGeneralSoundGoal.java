@@ -3,6 +3,8 @@ package com.armilp.ezvcsurvival.goals;
 import com.armilp.ezvcsurvival.config.GeneralSoundsConfig;
 import com.armilp.ezvcsurvival.config.SoundConfig;
 import com.armilp.ezvcsurvival.data.SoundGroupData;
+import com.armilp.ezvcsurvival.data.TimedSoundData;
+import com.armilp.ezvcsurvival.events.SoundEventTracker;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Mob;
@@ -12,14 +14,18 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.registries.ForgeRegistries;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
 public class ReactToGeneralSoundGoal extends Goal {
+
     private static final long PRIORITY_SOUND_DURATION_MS = 3500;
-    private static final int NAVIGATION_UPDATE_INTERVAL = 15;
-    private static final int LOOK_UPDATE_INTERVAL = 30;
     private static final long SOUND_REACTION_TIMEOUT = 4000;
+    private static final int LOOK_UPDATE_INTERVAL = 30;
+    private static final double STUCK_THRESHOLD_SQ = 0.04;
+    private static final int STUCK_CHECK_INTERVAL = 20;
+    private static final int STUCK_MAX_TICKS = 60;
 
     public static Vec3 lastPrioritySoundPos = null;
     public static long lastPrioritySoundTimestamp = 0;
@@ -30,12 +36,33 @@ public class ReactToGeneralSoundGoal extends Goal {
     private final List<SoundGroupData> soundGroups;
     private final String entityId;
     private final boolean isMonster;
+    private final List<ResolvedSoundGroup> resolvedGroups;
 
-    private Vec3 targetSoundPos = null;
-    private double targetSpeedMultiplier = 1.0;
-    private double targetRangeMultiplier = 1.0;
+    private Vec3 cachedTarget = null;
+    private double cachedSpeed = 0;
     private long targetSetTime = 0;
     private int tickCounter = 0;
+    private Vec3 lastCheckedPos = null;
+    private int stuckTicks = 0;
+
+    private long lastReactedPriorityTimestamp = -1;
+    private long lastReactedSoundTimestamp = -1;
+
+    private static final class ResolvedSoundGroup {
+        final SoundGroupData data;
+        final List<ResourceLocation> locations;
+        final boolean isPriority;
+
+        ResolvedSoundGroup(SoundGroupData data) {
+            this.data = data;
+            this.isPriority = data.groupName().startsWith("auto_priority_");
+            List<String> sounds = data.sounds();
+            this.locations = new ArrayList<>(sounds.size());
+            for (String s : sounds) {
+                this.locations.add(ResourceLocation.parse(s));
+            }
+        }
+    }
 
     public ReactToGeneralSoundGoal(Mob mob, double speed, double range, List<SoundGroupData> soundGroups) {
         this.mob = mob;
@@ -44,57 +71,9 @@ public class ReactToGeneralSoundGoal extends Goal {
         this.soundGroups = soundGroups;
         this.entityId = Objects.requireNonNull(ForgeRegistries.ENTITIES.getKey(mob.getType())).toString();
         this.isMonster = mob instanceof Monster;
-    }
-
-    public void onSoundPlayed(ResourceLocation soundLoc, Vec3 soundPos, double speedMult, double rangeMult) {
-        if (mob.getTarget() != null) return;
-
-        String soundId = soundLoc.toString();
-        if (!GeneralSoundsConfig.canEntityReactToSound(entityId, soundId)) return;
-
-        boolean isPriority = false;
-        for (int i = 0, size = soundGroups.size(); i < size; i++) {
-            SoundGroupData group = soundGroups.get(i);
-            if (group.groupName().startsWith("auto_priority_")) {
-                if (group.sounds().contains(soundId)) {
-                    isPriority = true;
-                    speedMult = group.speedMultiplier();
-                    rangeMult = group.rangeMultiplier();
-                    break;
-                }
-            }
-        }
-
-        if (!isPriority) {
-            boolean found = false;
-            for (int i = 0, size = soundGroups.size(); i < size; i++) {
-                SoundGroupData group = soundGroups.get(i);
-                if (group.sounds().contains(soundId)) {
-                    speedMult = group.speedMultiplier();
-                    rangeMult = group.rangeMultiplier();
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) return;
-        }
-
-        Vec3 mobPos = mob.position();
-        double effectiveRange = range * rangeMult;
-        if (mob.level.isRaining() || mob.level.isThundering()) {
-            effectiveRange *= SoundConfig.THUNDER_RANGE_MULTIPLIER.get();
-        }
-
-        double distSq = mobPos.distanceToSqr(soundPos);
-        if (distSq > effectiveRange * effectiveRange) return;
-
-        this.targetSoundPos = soundPos;
-        this.targetSpeedMultiplier = speedMult;
-        this.targetRangeMultiplier = rangeMult;
-        this.targetSetTime = System.currentTimeMillis();
-
-        if (isPriority && lastPrioritySoundPos == null) {
-            setPrioritySound(soundPos);
+        this.resolvedGroups = new ArrayList<>(soundGroups.size());
+        for (SoundGroupData group : soundGroups) {
+            resolvedGroups.add(new ResolvedSoundGroup(group));
         }
     }
 
@@ -103,121 +82,148 @@ public class ReactToGeneralSoundGoal extends Goal {
         if (mob.getTarget() != null) return false;
 
         long now = System.currentTimeMillis();
-
-        if (lastPrioritySoundPos != null && (now - lastPrioritySoundTimestamp) > PRIORITY_SOUND_DURATION_MS) {
-            lastPrioritySoundPos = null;
-        }
+        expirePrioritySound(now);
 
         if (lastPrioritySoundPos != null) {
+            if (lastPrioritySoundTimestamp == lastReactedPriorityTimestamp) return false;
             Vec3 mobPos = mob.position();
             double effectiveRange = range * 1.5;
-            if (mob.level.isRaining() || mob.level.isThundering()) {
-                effectiveRange *= SoundConfig.THUNDER_RANGE_MULTIPLIER.get();
-            }
+            if (isWeatherActive()) effectiveRange *= SoundConfig.THUNDER_RANGE_MULTIPLIER.get();
             if (mobPos.distanceToSqr(lastPrioritySoundPos) <= effectiveRange * effectiveRange) {
-                targetSoundPos = lastPrioritySoundPos;
-                targetSpeedMultiplier = 1.5;
-                targetRangeMultiplier = 1.5;
-                return true;
+                cachedTarget = resolveDestination(mobPos, lastPrioritySoundPos, effectiveRange);
+                cachedSpeed = speed * 1.5;
+                targetSetTime = now;
+                return cachedTarget != null;
             }
         }
 
-        return targetSoundPos != null && (now - targetSetTime) < SOUND_REACTION_TIMEOUT;
+        return findSoundTarget(now);
     }
 
     @Override
     public boolean canContinueToUse() {
         if (mob.getTarget() != null) return false;
+        if (cachedTarget == null) return false;
+        if (mob.getNavigation().isDone()) return false;
+        if (stuckTicks >= STUCK_MAX_TICKS) return false;
 
         long now = System.currentTimeMillis();
-        if (targetSoundPos == null) return false;
+        expirePrioritySound(now);
 
         if (lastPrioritySoundPos != null && (now - lastPrioritySoundTimestamp) <= PRIORITY_SOUND_DURATION_MS) {
             return true;
         }
 
-        if ((now - targetSetTime) > SOUND_REACTION_TIMEOUT) return false;
-
-        Vec3 mobPos = mob.position();
-        double effectiveRange = range * targetRangeMultiplier;
-        if (mob.level.isRaining() || mob.level.isThundering()) {
-            effectiveRange *= SoundConfig.THUNDER_RANGE_MULTIPLIER.get();
-        }
-
-        return mobPos.distanceToSqr(targetSoundPos) <= effectiveRange * effectiveRange;
+        return (now - targetSetTime) <= SOUND_REACTION_TIMEOUT;
     }
 
     @Override
     public void start() {
         tickCounter = 0;
-        if (targetSoundPos != null) {
-            updateNavigation();
+        stuckTicks = 0;
+        lastCheckedPos = mob.position();
+
+        if (lastPrioritySoundPos != null) {
+            lastReactedPriorityTimestamp = lastPrioritySoundTimestamp;
+        }
+
+        if (cachedTarget != null) {
+            mob.getNavigation().moveTo(cachedTarget.x, cachedTarget.y, cachedTarget.z, cachedSpeed);
         }
     }
 
     @Override
     public void tick() {
-        if (targetSoundPos == null) {
-            return;
-        }
-
+        if (cachedTarget == null) return;
         tickCounter++;
 
-        if (tickCounter % NAVIGATION_UPDATE_INTERVAL != 0) return;
+        if (tickCounter % STUCK_CHECK_INTERVAL == 0) {
+            Vec3 mobPos = mob.position();
+            if (lastCheckedPos != null && mobPos.distanceToSqr(lastCheckedPos) < STUCK_THRESHOLD_SQ) {
+                stuckTicks += STUCK_CHECK_INTERVAL;
+                if (stuckTicks < STUCK_MAX_TICKS) {
+                    mob.getNavigation().moveTo(cachedTarget.x, cachedTarget.y, cachedTarget.z, cachedSpeed);
+                }
+            } else {
+                stuckTicks = 0;
+            }
+            lastCheckedPos = mobPos;
+        }
 
-        updateNavigation();
-
-        if (isMonster && targetSoundPos != null && tickCounter % LOOK_UPDATE_INTERVAL == 0) {
-            mob.getLookControl().setLookAt(targetSoundPos.x, targetSoundPos.y, targetSoundPos.z, 30.0F, 30.0F);
+        if (isMonster && tickCounter % LOOK_UPDATE_INTERVAL == 0) {
+            mob.getLookControl().setLookAt(cachedTarget.x, cachedTarget.y, cachedTarget.z, 30.0F, 30.0F);
         }
     }
 
     @Override
     public void stop() {
-        targetSoundPos = null;
+        cachedTarget = null;
+        cachedSpeed = 0;
         tickCounter = 0;
+        stuckTicks = 0;
+        lastCheckedPos = null;
+        mob.getNavigation().stop();
     }
 
-    private void updateNavigation() {
-        if (targetSoundPos == null || mob.getTarget() != null) return;
+    private boolean findSoundTarget(long now) {
+        Vec3 mobPos = mob.position();
 
-        long now = System.currentTimeMillis();
+        for (int i = 0; i < resolvedGroups.size(); i++) {
+            ResolvedSoundGroup resolved = resolvedGroups.get(i);
+            List<ResourceLocation> locations = resolved.locations;
+            List<String> sounds = resolved.data.sounds();
+
+            for (int j = 0; j < locations.size(); j++) {
+                String soundStr = sounds.get(j);
+                if (!GeneralSoundsConfig.canEntityReactToSound(entityId, soundStr)) continue;
+
+                TimedSoundData data = SoundEventTracker.getLastSoundData(locations.get(j));
+                if (data == null) continue;
+                if (data.timestamp() == lastReactedSoundTimestamp) continue;
+
+                double effectiveRange = range * resolved.data.rangeMultiplier();
+                if (isWeatherActive()) effectiveRange *= SoundConfig.THUNDER_RANGE_MULTIPLIER.get();
+
+                if (mobPos.distanceToSqr(data.position()) > effectiveRange * effectiveRange) continue;
+
+                Vec3 destination = resolveDestination(mobPos, data.position(), effectiveRange);
+                if (destination == null) continue;
+
+                cachedTarget = destination;
+                cachedSpeed = speed * resolved.data.speedMultiplier() * (resolved.isPriority ? 1.3 : 1.0);
+                targetSetTime = now;
+                lastReactedSoundTimestamp = data.timestamp();
+
+                if (resolved.isPriority && lastPrioritySoundPos == null) {
+                    setPrioritySound(data.position());
+                }
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private Vec3 resolveDestination(Vec3 mobPos, Vec3 soundPos, double effectiveRange) {
+        if (isMonster) {
+            return grounded(soundPos);
+        } else {
+            Vec3 fleeDir = mobPos.subtract(soundPos);
+            double length = fleeDir.length();
+            if (length < 0.001) return null;
+            return grounded(mobPos.add(fleeDir.normalize().scale(effectiveRange)));
+        }
+    }
+
+    private void expirePrioritySound(long now) {
         if (lastPrioritySoundPos != null && (now - lastPrioritySoundTimestamp) > PRIORITY_SOUND_DURATION_MS) {
             lastPrioritySoundPos = null;
         }
+    }
 
-        Vec3 currentPos = mob.position();
-        boolean isPriority = targetSoundPos.equals(lastPrioritySoundPos);
-
-        double effectiveRange = range * targetRangeMultiplier;
-        double effectiveSpeed = speed * targetSpeedMultiplier;
-
-        if (isPriority) {
-            effectiveRange *= 1.5;
-            effectiveSpeed *= 1.3;
-        }
-
-        if (mob.level.isRaining() || mob.level.isThundering()) {
-            effectiveRange *= SoundConfig.THUNDER_RANGE_MULTIPLIER.get();
-        }
-
-        double distance = currentPos.distanceTo(targetSoundPos);
-
-        if (distance > effectiveRange) return;
-
-        if (isPriority && distance < 2.0) {
-            lastPrioritySoundPos = null;
-            targetSoundPos = null;
-            return;
-        }
-
-        if (distance > 50.0) effectiveSpeed *= 0.8;
-
-        Vec3 target = isMonster ?
-                grounded(targetSoundPos) :
-                grounded(currentPos.add(currentPos.subtract(targetSoundPos).normalize().scale(effectiveRange)));
-
-        mob.getNavigation().moveTo(target.x, target.y, target.z, effectiveSpeed);
+    private boolean isWeatherActive() {
+        return mob.level.isRaining() || mob.level.isThundering();
     }
 
     private Vec3 grounded(Vec3 desiredXZ) {

@@ -51,9 +51,7 @@ public class EZVCSurvival {
         SoundConfig.loadConfigs();
         SporeCompatLoader.init();
 
-        event.enqueueWork(() -> {
-            ModGameEvent.register();
-        });
+        event.enqueueWork(ModGameEvent::register);
     }
 
     @SubscribeEvent
@@ -77,10 +75,7 @@ public class EZVCSurvival {
                 CommonGunIndex index = entry.getValue();
                 GunFireListener.CommonGunIndexRegistry.registerCommonGunIndex(gunId, index);
                 count++;
-                LOGGER.debug("[EZVCSurvival] Registered gun: {} -> type: {}", gunId, index.getType());
             }
-
-            LOGGER.info("[EZVCSurvival] Successfully registered {} gun indexes from TaCZ", count);
         } catch (Exception e) {
             LOGGER.error("[EZVCSurvival] Failed to register gun indexes", e);
         }

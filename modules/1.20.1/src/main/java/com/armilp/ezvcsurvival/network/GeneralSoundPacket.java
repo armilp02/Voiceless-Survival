@@ -5,7 +5,6 @@ import com.armilp.ezvcsurvival.events.SoundEventTracker;
 import com.armilp.ezvcsurvival.goals.ReactToGeneralSoundGoal;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.network.NetworkEvent;
@@ -13,6 +12,9 @@ import net.minecraftforge.network.NetworkEvent;
 import java.util.function.Supplier;
 
 public class GeneralSoundPacket {
+
+    private static final double MAX_DISTANCE_FROM_PLAYER = 64.0;
+
     private final ResourceLocation sound;
     private final double x;
     private final double y;
@@ -20,7 +22,8 @@ public class GeneralSoundPacket {
     private final double speedMultiplier;
     private final double rangeMultiplier;
 
-    public GeneralSoundPacket(ResourceLocation sound, double x, double y, double z, double speedMultiplier, double rangeMultiplier) {
+    public GeneralSoundPacket(ResourceLocation sound, double x, double y, double z,
+                              double speedMultiplier, double rangeMultiplier) {
         this.sound = sound;
         this.x = x;
         this.y = y;
@@ -53,10 +56,14 @@ public class GeneralSoundPacket {
             ServerPlayer player = ctx.get().getSender();
             if (player == null) return;
 
-            ServerLevel level = player.serverLevel();
-            Vec3 soundPos = new Vec3(packet.x, packet.y, packet.z);
+            if (!Double.isFinite(packet.x) || !Double.isFinite(packet.y) || !Double.isFinite(packet.z)) {
+                return;
+            }
 
-            if (!Double.isFinite(soundPos.x) || !Double.isFinite(soundPos.y) || !Double.isFinite(soundPos.z)) {
+            Vec3 soundPos = new Vec3(packet.x, packet.y, packet.z);
+            Vec3 playerPos = player.position();
+
+            if (playerPos.distanceToSqr(soundPos) > MAX_DISTANCE_FROM_PLAYER * MAX_DISTANCE_FROM_PLAYER) {
                 return;
             }
 
@@ -69,23 +76,15 @@ public class GeneralSoundPacket {
                     packet.rangeMultiplier
             );
 
+            GeneralSoundsConfig.SoundEntry cfg = null;
             var soundMap = GeneralSoundsConfig.getSounds();
             if (soundMap != null) {
-                GeneralSoundsConfig.SoundEntry cfg = soundMap.get(packet.sound.toString());
-                if (cfg != null && cfg.is_priority) {
-                    ReactToGeneralSoundGoal.setPrioritySound(soundPos);
-                }
+                cfg = soundMap.get(packet.sound.toString());
             }
 
-            SoundEventTracker.notifyNearbyMobs(
-                    level,
-                    packet.sound,
-                    soundPos.x,
-                    soundPos.y,
-                    soundPos.z,
-                    packet.speedMultiplier,
-                    packet.rangeMultiplier
-            );
+            if (cfg != null && cfg.is_priority) {
+                ReactToGeneralSoundGoal.setPrioritySound(soundPos);
+            }
         });
         ctx.get().setPacketHandled(true);
     }

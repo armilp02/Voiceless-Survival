@@ -17,63 +17,73 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class GunFireListener {
 
-    private static final List<GunshotData> gunshotPositions = new CopyOnWriteArrayList<>();
     private static final long EXPIRATION_TIME_MS = 5000;
+    private static final AtomicReference<GunshotData> lastShot = new AtomicReference<>(null);
 
     @SubscribeEvent
     public static void onGunFire(GunFireEvent event) {
+        LivingEntity shooter = event.getShooter();
+        if (shooter == null) return;
+
         ItemStack gunStack = event.getGunItemStack();
         IGun gun = IGun.getIGunOrNull(gunStack);
 
-        LivingEntity shooter = event.getShooter();
-        if (shooter != null && useSilenceSound(shooter, gunStack)) {
-            return;
-        }
-        if (shooter == null) return;
-        Vec3 shooterPos = shooter.position();
+        if (useSilenceSound(shooter, gunStack)) return;
 
+        Vec3 shooterPos = shooter.position();
         GunTabType gunType = GunTabType.PISTOL;
+
         if (gun != null) {
             try {
                 ResourceLocation gunId = gun.getGunId(gunStack);
+                String gunIdStr = gunId.toString().toLowerCase();
+
                 CommonGunIndex commonGunIndex = CommonGunIndexRegistry.getCommonGunIndex(gunId);
+
                 if (commonGunIndex != null) {
                     String typeStr = commonGunIndex.getType();
-                    gunType = GunTabType.valueOf(typeStr.toUpperCase());
-                } else {
-                    String gunIdStr = gunId.toString().toLowerCase();
-                    if (gunIdStr.contains("sniper")) {
-                        gunType = GunTabType.SNIPER;
-                    } else if (gunIdStr.contains("rifle")) {
-                        gunType = GunTabType.RIFLE;
-                    } else if (gunIdStr.contains("shotgun")) {
-                        gunType = GunTabType.SHOTGUN;
-                    } else if (gunIdStr.contains("smg")) {
-                        gunType = GunTabType.SMG;
-                    } else if (gunIdStr.contains("rpg")) {
-                        gunType = GunTabType.RPG;
-                    } else if (gunIdStr.contains("mg")) {
-                        gunType = GunTabType.MG;
-                    } else {
-                        gunType = GunTabType.PISTOL;
+                    try {
+                        gunType = GunTabType.valueOf(typeStr.toUpperCase());
+                    } catch (IllegalArgumentException e) {
+                        gunType = inferGunTypeFromId(gunIdStr);
                     }
+                } else {
+                    gunType = inferGunTypeFromId(gunIdStr);
                 }
             } catch (Exception e) {
                 gunType = GunTabType.PISTOL;
             }
         }
 
-        gunshotPositions.add(new GunshotData(shooterPos, System.currentTimeMillis(), gunType));
+        lastShot.set(new GunshotData(shooterPos, System.currentTimeMillis(), gunType));
+    }
+
+    private static GunTabType inferGunTypeFromId(String gunIdStr) {
+        if (gunIdStr.contains("sniper") || gunIdStr.contains("awp") || gunIdStr.contains("barrett")) {
+            return GunTabType.SNIPER;
+        } else if (gunIdStr.contains("rifle") || gunIdStr.contains("ak") || gunIdStr.contains("m4") ||
+                gunIdStr.contains("scar") || gunIdStr.contains("hk416")) {
+            return GunTabType.RIFLE;
+        } else if (gunIdStr.contains("shotgun") || gunIdStr.contains("spas") || gunIdStr.contains("m870")) {
+            return GunTabType.SHOTGUN;
+        } else if (gunIdStr.contains("smg") || gunIdStr.contains("mp5") || gunIdStr.contains("ump") ||
+                gunIdStr.contains("vector") || gunIdStr.contains("uzi")) {
+            return GunTabType.SMG;
+        } else if (gunIdStr.contains("rpg") || gunIdStr.contains("rocket") || gunIdStr.contains("launcher")) {
+            return GunTabType.RPG;
+        } else if (gunIdStr.contains("mg") || gunIdStr.contains("lmg") || gunIdStr.contains("m249") ||
+                gunIdStr.contains("minigun")) {
+            return GunTabType.MG;
+        }
+        return GunTabType.PISTOL;
     }
 
     private static boolean useSilenceSound(LivingEntity entity, ItemStack gunStack) {
-
         IGunOperator operator = IGunOperator.fromLivingEntity(entity);
         if (operator != null) {
             AttachmentCacheProperty cacheProperty = operator.getCacheProperty();
@@ -84,16 +94,19 @@ public class GunFireListener {
         }
         IGun gun = IGun.getIGunOrNull(gunStack);
         if (gun != null) {
-            ResourceLocation gunId = gun.getGunId(gunStack);
-            return SoundConfig.isSilencedGun(gunId);
+            return SoundConfig.isSilencedGun(gun.getGunId(gunStack));
         }
         return false;
     }
 
     public static GunshotData getLastGunshotData() {
-        long currentTime = System.currentTimeMillis();
-        gunshotPositions.removeIf(record -> currentTime - record.timestamp() > EXPIRATION_TIME_MS);
-        return gunshotPositions.isEmpty() ? null : gunshotPositions.get(gunshotPositions.size() - 1);
+        GunshotData data = lastShot.get();
+        if (data == null) return null;
+        if (System.currentTimeMillis() - data.timestamp() > EXPIRATION_TIME_MS) {
+            lastShot.compareAndSet(data, null);
+            return null;
+        }
+        return data;
     }
 
     public static class CommonGunIndexRegistry {
