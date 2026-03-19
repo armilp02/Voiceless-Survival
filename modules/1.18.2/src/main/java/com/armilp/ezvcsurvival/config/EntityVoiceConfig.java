@@ -6,6 +6,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParseException;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.MalformedJsonException;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraftforge.fml.loading.FMLPaths;
@@ -112,13 +113,20 @@ public final class EntityVoiceConfig {
                     ROOT = loaded;
                     MONSTER_CONFIGS = loaded.monsters != null ? new HashMap<>(loaded.monsters) : new HashMap<>();
                     ANIMAL_CONFIGS = loaded.animals != null ? new HashMap<>(loaded.animals) : new HashMap<>();
+
+                    if (VoiceConfig.DEBUG.get()) {
+                        EZVCSurvival.LOGGER.info("[EntityVoiceConfig] Loaded {} monsters, {} animals from file",
+                                MONSTER_CONFIGS.size(), ANIMAL_CONFIGS.size());
+                    }
                 } else {
                     ROOT = new RootConfig();
                     MONSTER_CONFIGS = new HashMap<>();
                     ANIMAL_CONFIGS = new HashMap<>();
+                    generateDefaults();
+                    save(path);
                 }
             } catch (JsonParseException | MalformedJsonException e) {
-                EZVCSurvival.LOGGER.warn("Malformed JSON in entities_voices.json, using defaults (no backup): {}", e.getMessage());
+                EZVCSurvival.LOGGER.warn("Malformed JSON in entities_voices.json, using defaults: {}", e.getMessage());
                 ROOT = new RootConfig();
                 MONSTER_CONFIGS = new HashMap<>();
                 ANIMAL_CONFIGS = new HashMap<>();
@@ -138,9 +146,19 @@ public final class EntityVoiceConfig {
             save(path);
         }
 
-        boolean addedNew = ensureAllEntitiesPresent();
-        if (addedNew) {
-            save(path);
+        // Only add new entities if generation is enabled
+        if (VoiceConfig.ENABLE_ENTITY_VOICE.get()) {
+            boolean addedNew = ensureAllEntitiesPresent();
+            if (addedNew) {
+                save(path);
+                if (VoiceConfig.DEBUG.get()) {
+                    EZVCSurvival.LOGGER.info("[EntityVoiceConfig] Auto-generation enabled: added new entities");
+                }
+            }
+        } else {
+            if (VoiceConfig.DEBUG.get()) {
+                EZVCSurvival.LOGGER.info("[EntityVoiceConfig] Auto-generation disabled: using existing entities only");
+            }
         }
     }
 
@@ -168,6 +186,7 @@ public final class EntityVoiceConfig {
     private static void generateDefaults() {
         MONSTER_CONFIGS.clear();
         ANIMAL_CONFIGS.clear();
+
         for (EntityType<?> type : ForgeRegistries.ENTITIES) {
             MobCategory category = type.getCategory();
             if (category == MobCategory.MISC) continue;
@@ -184,11 +203,14 @@ public final class EntityVoiceConfig {
             }
         }
 
-        putIfPresent(MONSTER_CONFIGS, "minecraft:zombie", new EntityConfig(true, 1.7, 60.0, -20.0));
-        putIfPresent(MONSTER_CONFIGS, "minecraft:skeleton", new EntityConfig(true, 1.2, 40.0, -15.0));
-        putIfPresent(MONSTER_CONFIGS, "quiet_place:death_angel", new EntityConfig(true, 1.2, 50.0, -10.0));
-        putIfPresent(ANIMAL_CONFIGS, "minecraft:cow", new EntityConfig(true, 1.5, 25.0, -18.0));
-        putIfPresent(ANIMAL_CONFIGS, "minecraft:pig", new EntityConfig(true, 1.2, 15.0, -18.0));
+        putIfPresent(MONSTER_CONFIGS, "minecraft:zombie", new EntityConfig(true, 1.0, 60.0, -20.0));
+        putIfPresent(MONSTER_CONFIGS, "minecraft:skeleton", new EntityConfig(true, 1.0, 40.0, -15.0));
+        putIfPresent(MONSTER_CONFIGS, "quiet_place:death_angel", new EntityConfig(true, 1.0, 50.0, -10.0));
+        putIfPresent(ANIMAL_CONFIGS, "minecraft:cow", new EntityConfig(true, 1.0, 25.0, -18.0));
+        putIfPresent(ANIMAL_CONFIGS, "minecraft:pig", new EntityConfig(true, 1.0, 15.0, -18.0));
+
+        activateEntitiesFromMod("zombie_extreme", new EntityConfig(true, 1.0, 40.0, -20.0));
+        activateEntitiesFromMod("apocalypsenow", new EntityConfig(true, 1.0, 40.0, -20.0));
     }
 
     private static boolean isMonsterCategory(MobCategory category) {
@@ -209,6 +231,18 @@ public final class EntityVoiceConfig {
         }
     }
 
+    private static void activateEntitiesFromMod(String modId, EntityConfig config) {
+        for (EntityType<?> type : ForgeRegistries.ENTITIES) {
+            ResourceLocation key = ForgeRegistries.ENTITIES.getKey(type);
+            if (key == null) continue;
+
+            if (!key.getNamespace().equals(modId)) continue;
+            if (type.getCategory() != MobCategory.MONSTER) continue;
+
+            String id = key.toString();
+            MONSTER_CONFIGS.put(id, config);
+        }
+    }
 
     private static void save(Path path) {
         if (MONSTER_CONFIGS == null || ANIMAL_CONFIGS == null) {
@@ -234,8 +268,8 @@ public final class EntityVoiceConfig {
                 writer.flush();
             }
 
-            if (com.armilp.ezvcsurvival.config.VoiceConfig.DEBUG.get()) {
-                System.out.println("[EZVCSurvival] Successfully saved entities_voices.json with enabled=" + ROOT.enabled);
+            if (VoiceConfig.DEBUG.get()) {
+                EZVCSurvival.LOGGER.info("[EntityVoiceConfig] Saved config with enabled={}", ROOT.enabled);
             }
 
         } catch (IOException e) {
@@ -252,8 +286,8 @@ public final class EntityVoiceConfig {
         ROOT.enabled = enabled;
         persist();
 
-        if (com.armilp.ezvcsurvival.config.VoiceConfig.DEBUG.get()) {
-            System.out.println("[EZVCSurvival] EntityVoiceConfig setEnabled called: " + enabled);
+        if (VoiceConfig.DEBUG.get()) {
+            EZVCSurvival.LOGGER.info("[EntityVoiceConfig] setEnabled: {}", enabled);
         }
     }
 

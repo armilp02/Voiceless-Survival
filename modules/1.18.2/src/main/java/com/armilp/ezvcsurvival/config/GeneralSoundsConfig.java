@@ -51,6 +51,11 @@ public final class GeneralSoundsConfig {
                     ROOT = loaded;
                     if (ROOT.mobs == null) ROOT.mobs = new HashMap<>();
                     if (ROOT.sounds == null) ROOT.sounds = new HashMap<>();
+
+                    if (SoundConfig.isDebugEnabled()) {
+                        EZVCSurvival.LOGGER.info("[GeneralSoundsConfig] Reloaded {} mobs, {} sounds",
+                                ROOT.mobs.size(), ROOT.sounds.size());
+                    }
                 }
             } catch (Exception e) {
                 EZVCSurvival.LOGGER.warn("Error reloading generalsounds.json: {}", e.getMessage());
@@ -165,7 +170,6 @@ public final class GeneralSoundsConfig {
                 SoundGroupData priorityGroup = createPriorityGroup(groupName, soundId, soundEntry);
                 if (priorityGroup != null) {
                     priorityGroups.add(priorityGroup);
-                    EZVCSurvival.LOGGER.debug("Added active priority group: {} for sound: {}", groupName, soundId);
                 }
             }
         }
@@ -192,13 +196,11 @@ public final class GeneralSoundsConfig {
             if (sound.is_priority) {
                 sound.enabled = enabled;
                 changed = true;
-                EZVCSurvival.LOGGER.debug("Set priority sound '{}' enabled to: {}", entry.getKey(), enabled);
             }
         }
 
         if (changed) {
             persist();
-            EZVCSurvival.LOGGER.info("Updated all priority sounds to enabled={}", enabled);
         }
     }
 
@@ -234,13 +236,18 @@ public final class GeneralSoundsConfig {
                     ROOT = loaded;
                     if (ROOT.mobs == null) ROOT.mobs = new HashMap<>();
                     if (ROOT.sounds == null) ROOT.sounds = new HashMap<>();
+
+                    if (SoundConfig.isDebugEnabled()) {
+                        EZVCSurvival.LOGGER.info("[GeneralSoundsConfig] Loaded {} mobs, {} sounds from file",
+                                ROOT.mobs.size(), ROOT.sounds.size());
+                    }
                 } else {
                     ROOT = new Root();
                     generateDefaults();
                     save(path);
                 }
             } catch (JsonParseException | MalformedJsonException e) {
-                EZVCSurvival.LOGGER.warn("Malformed JSON in generalsounds.json, using defaults (no backup): {}", e.getMessage());
+                EZVCSurvival.LOGGER.warn("Malformed JSON in generalsounds.json, using defaults: {}", e.getMessage());
                 ROOT = new Root();
                 generateDefaults();
                 save(path);
@@ -256,13 +263,23 @@ public final class GeneralSoundsConfig {
             save(path);
         }
 
-        boolean addedNew = ensureNewENTITY_TYPESOnly();
-        if (addedNew) {
-            save(path);
+        // Only add new entities/sounds if generation is enabled
+        if (SoundConfig.ENABLE_GENERAL_SOUNDS.get()) {
+            boolean addedNew = ensureNewEntitiesOnly();
+            if (addedNew) {
+                save(path);
+                if (SoundConfig.isDebugEnabled()) {
+                    EZVCSurvival.LOGGER.info("[GeneralSoundsConfig] Auto-generation enabled: added new entries");
+                }
+            }
+        } else {
+            if (SoundConfig.isDebugEnabled()) {
+                EZVCSurvival.LOGGER.info("[GeneralSoundsConfig] Auto-generation disabled: using existing entries only");
+            }
         }
     }
 
-    private static boolean ensureNewENTITY_TYPESOnly() {
+    private static boolean ensureNewEntitiesOnly() {
         boolean added = false;
 
         if (ROOT.mobs == null) {
@@ -293,25 +310,29 @@ public final class GeneralSoundsConfig {
                 added = true;
             }
         }
-
         return added;
     }
 
     private static boolean shouldEnableByDefault(String soundId) {
-        if (soundId.startsWith("pointblank:") || soundId.contains("superbwarfare:")) {
+        String lower = soundId.toLowerCase();
+
+        if (!lower.startsWith("minecraft:")) {
             return false;
         }
 
-        return soundId.contains("place") || soundId.contains("break") ||
-                soundId.contains("explode") || soundId.contains("explosion");
+        return lower.contains("place") || lower.contains("break") ||
+                lower.contains("explode") || lower.contains("explosion") ||
+                lower.equals("minecraft:block.sculk_sensor.clicking");
     }
 
     private static boolean shouldBePriorityByDefault(String soundId) {
-        if (soundId.startsWith("pointblank:") || soundId.contains("superbwarfare:")) {
+        String lower = soundId.toLowerCase();
+
+        if (!lower.startsWith("minecraft:")) {
             return false;
         }
 
-        return soundId.contains("explode") || soundId.contains("explosion");
+        return lower.contains("explode") || lower.contains("explosion");
     }
 
     private static void generateDefaults() {
@@ -329,16 +350,27 @@ public final class GeneralSoundsConfig {
             );
         }
 
-        putIfPresent(ROOT.mobs, "minecraft:zombie", new Reaction(true, 1.7, 60.0));
-        putIfPresent(ROOT.mobs, "minecraft:skeleton", new Reaction(true, 1.2, 40.0));
-        putIfPresent(ROOT.mobs, "quiet_place:death_angel", new Reaction(true, 1.2, 50.0));
-        putIfPresent(ROOT.mobs, "minecraft:cow", new Reaction(true, 1.5, 25.0));
-        putIfPresent(ROOT.mobs, "minecraft:pig", new Reaction(true, 1.2, 15.0));
+        putIfPresent(ROOT.mobs, "minecraft:zombie", new Reaction(true, 1.0, 60.0));
+        putIfPresent(ROOT.mobs, "minecraft:skeleton", new Reaction(true, 1.0, 40.0));
+        putIfPresent(ROOT.mobs, "quiet_place:death_angel", new Reaction(true, 1.0, 50.0));
+        putIfPresent(ROOT.mobs, "minecraft:cow", new Reaction(true, 1.0, 25.0));
+        putIfPresent(ROOT.mobs, "minecraft:pig", new Reaction(true, 1.0, 15.0));
+
+        activateEntitiesFromMod(ROOT.mobs, "zombie_extreme", new Reaction(true, 1.0, 40.0));
+        activateEntitiesFromMod(ROOT.mobs, "apocalypsenow", new Reaction(true, 1.0, 40.0));
     }
 
     private static void putIfPresent(Map<String, Reaction> map, String id, Reaction config) {
         if (map.containsKey(id)) {
             map.put(id, config);
+        }
+    }
+
+    private static void activateEntitiesFromMod(Map<String, Reaction> map, String modId, Reaction config) {
+        for (String entityId : map.keySet()) {
+            if (entityId.startsWith(modId + ":")) {
+                map.put(entityId, config);
+            }
         }
     }
 
@@ -357,6 +389,12 @@ public final class GeneralSoundsConfig {
                     java.nio.file.StandardOpenOption.TRUNCATE_EXISTING)) {
                 GSON.toJson(ROOT, ROOT_TYPE, writer);
                 writer.flush();
+            }
+
+            if (SoundConfig.isDebugEnabled()) {
+                EZVCSurvival.LOGGER.info("[GeneralSoundsConfig] Saved config with {} mobs, {} sounds",
+                        ROOT.mobs != null ? ROOT.mobs.size() : 0,
+                        ROOT.sounds != null ? ROOT.sounds.size() : 0);
             }
 
         } catch (IOException e) {

@@ -17,6 +17,7 @@ public class VoiceConfig {
     public static final ForgeConfigSpec.DoubleValue SNEAKING_RANGE_MULTIPLIER;
 
     public static final ForgeConfigSpec.BooleanValue MOB_SPEED_BOOST_ENABLED;
+
     // Sculk Sensor Config
     public static final ForgeConfigSpec.BooleanValue SCULK_SENSOR_ENABLED;
     public static final ForgeConfigSpec.DoubleValue SCULK_SENSOR_THRESHOLD;
@@ -25,7 +26,22 @@ public class VoiceConfig {
 
     public static final ForgeConfigSpec.BooleanValue DEBUG;
 
+    // Auto-generation toggle for entities_voices.json
+    public static final ForgeConfigSpec.BooleanValue ENABLE_ENTITY_VOICE;
+
     static {
+        BUILDER.comment("Debug Config")
+                .push("debugging");
+        DEBUG = BUILDER.define("debug", false);
+        BUILDER.pop();
+
+        BUILDER.comment("Entity Voice Config Generation",
+                        "If true, automatically adds new entities to entities_voices.json when detected",
+                        "If false, only uses entities already in the file (allows manual control)")
+                .push("entity_voice_generation");
+        ENABLE_ENTITY_VOICE = BUILDER.define("enable_generation", true);
+        BUILDER.pop();
+
         BUILDER.comment("Whisper Config",
                         "Multipliers that affect the detection range and movement speed when the player is whispering.")
                 .push("whisper_configs");
@@ -39,6 +55,13 @@ public class VoiceConfig {
         MOB_SPEED_BOOST_ENABLED = BUILDER.define("mob_speed_boost_enabled", true);
         BUILDER.pop();
 
+        BUILDER.comment("Misc Config",
+                        "Multipliers that affect the detection range of voices in specific situations.")
+                .push("misc_config");
+        THUNDER_RANGE_MULTIPLIER = BUILDER.defineInRange("thunder_range_multiplier", 0.65, 0.0, 1.0);
+        SNEAKING_RANGE_MULTIPLIER = BUILDER.defineInRange("sneaking_range_multiplier", 0.5, 0.0, 1.0);
+        BUILDER.pop();
+
         BUILDER.comment("Sculk Sensor Voice Detection Config",
                         "Configure sculk sensors to activate when players speak via voice chat",
                         "Enable: Toggle sculk sensor activation from voice",
@@ -47,16 +70,9 @@ public class VoiceConfig {
                         "Frequency: Redstone signal strength output (1-15)")
                 .push("sculk_sensor_config");
         SCULK_SENSOR_ENABLED = BUILDER.define("sculk_sensor_enabled", true);
-        SCULK_SENSOR_THRESHOLD = BUILDER.defineInRange("sculk_sensor_threshold", -40.0, -127.0, 0.0);
+        SCULK_SENSOR_THRESHOLD = BUILDER.defineInRange("sculk_sensor_threshold", -45.0, -127.0, 0.0);
         SCULK_SENSOR_RANGE = BUILDER.defineInRange("sculk_sensor_range", 16, 1, 100);
         SCULK_SENSOR_FREQUENCY = BUILDER.defineInRange("sculk_sensor_frequency", 8, 1, 15);
-        BUILDER.pop();
-
-        BUILDER.comment("Misc Config",
-                        "Multipliers that affect the detection range of voices in specific situations.")
-                .push("misc_config");
-        THUNDER_RANGE_MULTIPLIER = BUILDER.defineInRange("thunder_range_multiplier", 0.65, 0.0, 1.0);
-        SNEAKING_RANGE_MULTIPLIER = BUILDER.defineInRange("sneaking_range_multiplier", 0.5, 0.0, 1.0);
         BUILDER.pop();
 
         BUILDER.comment("Armor Effects Config",
@@ -69,12 +85,6 @@ public class VoiceConfig {
                 obj -> obj instanceof String && ((String) obj).contains("=")
         );
         BUILDER.pop();
-
-        BUILDER.comment("Debugging Config")
-                .push("debugging");
-        DEBUG = BUILDER.define("debug", false);
-        BUILDER.pop();
-
         CONFIG = BUILDER.build();
     }
 }

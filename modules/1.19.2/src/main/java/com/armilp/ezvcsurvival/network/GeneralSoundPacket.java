@@ -13,8 +13,6 @@ import java.util.function.Supplier;
 
 public class GeneralSoundPacket {
 
-    private static final double MAX_DISTANCE_FROM_PLAYER = 64.0;
-
     private final ResourceLocation sound;
     private final double x;
     private final double y;
@@ -56,16 +54,9 @@ public class GeneralSoundPacket {
             ServerPlayer player = ctx.get().getSender();
             if (player == null) return;
 
-            if (!Double.isFinite(packet.x) || !Double.isFinite(packet.y) || !Double.isFinite(packet.z)) {
-                return;
-            }
+            if (!Double.isFinite(packet.x) || !Double.isFinite(packet.y) || !Double.isFinite(packet.z)) return;
 
             Vec3 soundPos = new Vec3(packet.x, packet.y, packet.z);
-            Vec3 playerPos = player.position();
-
-            if (playerPos.distanceToSqr(soundPos) > MAX_DISTANCE_FROM_PLAYER * MAX_DISTANCE_FROM_PLAYER) {
-                return;
-            }
 
             SoundEventTracker.setLastPlayedPosition(
                     packet.sound,
@@ -76,12 +67,10 @@ public class GeneralSoundPacket {
                     packet.rangeMultiplier
             );
 
-            GeneralSoundsConfig.SoundEntry cfg = null;
             var soundMap = GeneralSoundsConfig.getSounds();
-            if (soundMap != null) {
-                cfg = soundMap.get(packet.sound.toString());
-            }
+            if (soundMap == null) return;
 
+            GeneralSoundsConfig.SoundEntry cfg = soundMap.get(packet.sound.toString());
             if (cfg != null && cfg.is_priority) {
                 ReactToGeneralSoundGoal.setPrioritySound(soundPos);
             }
