@@ -2,6 +2,7 @@ package com.armilp.ezvcsurvival.goals;
 
 import com.armilp.ezvcsurvival.compat.tacz.GunFireListener;
 import com.armilp.ezvcsurvival.config.SoundConfig;
+import com.armilp.ezvcsurvival.data.GunTypeModifiers;
 import com.armilp.ezvcsurvival.data.GunshotData;
 import com.armilp.ezvcsurvival.data.SoundGroupData;
 import com.armilp.ezvcsurvival.events.SoundEventTracker;
@@ -130,8 +131,17 @@ public class ReactToGunfireGoal extends Goal {
         if (data == null) return;
 
         String gunType = data.gunType().name().toLowerCase();
-        double range = baseRange * SoundConfig.getRangeMultiplier(gunType);
-        double speed = baseSpeed * SoundConfig.getSpeedMultiplier(gunType);
+        double rangeMult = SoundConfig.getRangeMultiplier(gunType);
+        double speedMult = SoundConfig.getSpeedMultiplier(gunType);
+
+        if (GunFireListener.wasLastShotSilenced()) {
+            GunTypeModifiers silencerMod = SoundConfig.getSilencerModifiers(gunType);
+            rangeMult *= silencerMod.rangeMultiplier();
+            speedMult *= silencerMod.speedMultiplier();
+        }
+
+        double range = baseRange * rangeMult;
+        double speed = baseSpeed * speedMult;
         if (isWeatherActive()) range *= SoundConfig.THUNDER_RANGE_MULTIPLIER.get();
 
         if (mobPos.distanceToSqr(data.position()) <= range * range) {
@@ -196,7 +206,14 @@ public class ReactToGunfireGoal extends Goal {
     }
 
     private double gunRange(GunshotData data) {
-        double range = baseRange * SoundConfig.getRangeMultiplier(data.gunType().name().toLowerCase());
+        String gunType = data.gunType().name().toLowerCase();
+        double rangeMult = SoundConfig.getRangeMultiplier(gunType);
+
+        if (GunFireListener.wasLastShotSilenced()) {
+            rangeMult *= SoundConfig.getSilencerModifiers(gunType).rangeMultiplier();
+        }
+
+        double range = baseRange * rangeMult;
         if (isWeatherActive()) range *= SoundConfig.THUNDER_RANGE_MULTIPLIER.get();
         return range;
     }

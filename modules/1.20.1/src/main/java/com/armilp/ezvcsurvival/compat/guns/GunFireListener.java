@@ -20,12 +20,14 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class GunFireListener {
 
     private static final long EXPIRATION_TIME_MS = 5000;
     private static final AtomicReference<GunshotData> lastShot = new AtomicReference<>(null);
+    private static final AtomicBoolean lastShotSilenced = new AtomicBoolean(false);
 
     @SubscribeEvent
     public static void onGunFire(GunFireEvent event) {
@@ -35,7 +37,9 @@ public class GunFireListener {
         ItemStack gunStack = event.getGunItemStack();
         IGun gun = IGun.getIGunOrNull(gunStack);
 
-        if (useSilenceSound(shooter, gunStack)) return;
+        boolean silenced = isSilenced(shooter, gunStack);
+
+        if (silenced && !SoundConfig.isSilencerModifiersEnabled()) return;
 
         Vec3 shooterPos = shooter.position();
         GunTabType gunType = GunTabType.PISTOL;
@@ -66,6 +70,7 @@ public class GunFireListener {
             SoundEffectCommand.applyEffect(serverPlayer);
         }
 
+        lastShotSilenced.set(silenced);
         lastShot.set(new GunshotData(shooterPos, System.currentTimeMillis(), gunType));
     }
 
@@ -89,7 +94,7 @@ public class GunFireListener {
         return GunTabType.PISTOL;
     }
 
-    private static boolean useSilenceSound(LivingEntity entity, ItemStack gunStack) {
+    private static boolean isSilenced(LivingEntity entity, ItemStack gunStack) {
         IGunOperator operator = IGunOperator.fromLivingEntity(entity);
         if (operator != null) {
             AttachmentCacheProperty cacheProperty = operator.getCacheProperty();
@@ -113,6 +118,13 @@ public class GunFireListener {
             return null;
         }
         return data;
+    }
+
+    public static boolean wasLastShotSilenced() {
+        GunshotData data = lastShot.get();
+        if (data == null) return false;
+        if (System.currentTimeMillis() - data.timestamp() > EXPIRATION_TIME_MS) return false;
+        return lastShotSilenced.get();
     }
 
     public static class CommonGunIndexRegistry {

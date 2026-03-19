@@ -16,6 +16,8 @@ public class SoundConfig {
 
     public static final ForgeConfigSpec.ConfigValue<List<? extends String>> TACZ_GUN_TYPE_MODIFIERS;
     public static final ForgeConfigSpec.ConfigValue<List<? extends String>> SILENCED_GUN_IDS;
+    public static final ForgeConfigSpec.BooleanValue ENABLE_SILENCER_MODIFIERS;
+    public static final ForgeConfigSpec.ConfigValue<List<? extends String>> TACZ_SILENCER_MODIFIERS;
     public static final ForgeConfigSpec.DoubleValue THUNDER_RANGE_MULTIPLIER;
     public static final ForgeConfigSpec.BooleanValue DEBUG;
 
@@ -23,6 +25,7 @@ public class SoundConfig {
     private static final Map<String, Map<String, Object>> generalReactionsMap = new HashMap<>();
     private static final Map<String, Map<String, Object>> gunfireReactionsMap = new HashMap<>();
     private static final Map<String, GunTypeModifiers> gunModifiersMap = new HashMap<>();
+    private static final Map<String, GunTypeModifiers> silencerModifiersMap = new HashMap<>();
     private static final Set<String> silencedGunIds = new HashSet<>();
     private static final List<SoundGroupData> customSoundGroups = new ArrayList<>();
 
@@ -48,6 +51,7 @@ public class SoundConfig {
                 .push("generalsounds_generation");
         ENABLE_GENERAL_SOUNDS = builder.define("enable_generation", true);
         builder.pop();
+
         builder.comment("Debug Mode")
                 .push("debugging");
         DEBUG = builder.define("debug", false);
@@ -92,6 +96,28 @@ public class SoundConfig {
         );
         builder.pop();
 
+        builder.push("tacz_silencer_modifiers");
+        builder.comment(
+                "If false, silenced guns are completely ignored by mobs (original behavior)"
+        );
+        ENABLE_SILENCER_MODIFIERS = builder.define("enabled", true);
+        builder.comment(
+                "Silencer modifiers per gun type in format: type=speed,range"
+        );
+        TACZ_SILENCER_MODIFIERS = builder.defineList("modifiers",
+                () -> List.of(
+                        "pistol=0.5,0.4",
+                        "sniper=0.5,0.35",
+                        "rifle=0.5,0.4",
+                        "shotgun=0.6,0.45",
+                        "smg=0.5,0.4",
+                        "rpg=0.7,0.5",
+                        "mg=0.6,0.45"
+                ),
+                obj -> obj instanceof String && ((String) obj).contains("=")
+        );
+        builder.pop();
+
         SPEC = builder.build();
 
         loadDefaultGunTypeModifiers();
@@ -117,6 +143,7 @@ public class SoundConfig {
     public static void loadConfigs() {
         loadGunTypeModifiers();
         loadSilencedGuns();
+        loadSilencerModifiers();
 
         try {
             GeneralSoundsConfig.init();
@@ -215,6 +242,35 @@ public class SoundConfig {
         }
     }
 
+    private static void loadSilencerModifiers() {
+        silencerModifiersMap.clear();
+        List<? extends String> modifiers = TACZ_SILENCER_MODIFIERS.get();
+
+        for (String entry : modifiers) {
+            String[] parts = entry.split("=", 2);
+            if (parts.length < 2) {
+                EZVCSurvival.LOGGER.warn("[SoundConfig] Invalid silencer modifier entry: {}", entry);
+                continue;
+            }
+            String[] values = parts[1].split(",");
+            if (values.length != 2) {
+                EZVCSurvival.LOGGER.warn("[SoundConfig] Invalid silencer modifier values: {}", entry);
+                continue;
+            }
+            try {
+                double speed = Double.parseDouble(values[0].trim());
+                double range = Double.parseDouble(values[1].trim());
+                silencerModifiersMap.put(parts[0].trim().toLowerCase(), new GunTypeModifiers(speed, range));
+                if (isDebugEnabled()) {
+                    EZVCSurvival.LOGGER.info("[SoundConfig] Silencer modifier '{}' -> speed={}x, range={}x",
+                            parts[0].trim(), speed, range);
+                }
+            } catch (NumberFormatException e) {
+                EZVCSurvival.LOGGER.warn("[SoundConfig] Invalid numbers in silencer modifier: {}", entry);
+            }
+        }
+    }
+
     private static void refreshPriorityGroups() {
         priorityGroups.clear();
         GeneralSoundsConfig.processPrioritySounds(priorityGroups);
@@ -264,27 +320,37 @@ public class SoundConfig {
     }
 
     public static double getSpeedMultiplier(String gunType) {
-        if (gunType == null || gunType.isEmpty()) {
-            return 1.0;
-        }
-
-        String key = gunType.toLowerCase();
-        GunTypeModifiers mod = gunModifiersMap.get(key);
+        if (gunType == null || gunType.isEmpty()) return 1.0;
+        GunTypeModifiers mod = gunModifiersMap.get(gunType.toLowerCase());
         return mod != null ? mod.speedMultiplier() : 1.0;
     }
 
     public static double getRangeMultiplier(String gunType) {
-        if (gunType == null || gunType.isEmpty()) {
-            return 1.0;
-        }
-
-        String key = gunType.toLowerCase();
-        GunTypeModifiers mod = gunModifiersMap.get(key);
+        if (gunType == null || gunType.isEmpty()) return 1.0;
+        GunTypeModifiers mod = gunModifiersMap.get(gunType.toLowerCase());
         return mod != null ? mod.rangeMultiplier() : 1.0;
     }
 
     public static boolean isSilencedGun(ResourceLocation id) {
         return id != null && silencedGunIds.contains(id.toString().toLowerCase());
+    }
+
+    public static boolean isSilencerModifiersEnabled() {
+        try {
+            return ENABLE_SILENCER_MODIFIERS.get();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public static GunTypeModifiers getSilencerModifiers(String gunType) {
+        if (gunType != null) {
+            GunTypeModifiers mod = silencerModifiersMap.get(gunType.toLowerCase());
+            if (mod != null) return mod;
+            GunTypeModifiers def = silencerModifiersMap.get("default");
+            if (def != null) return def;
+        }
+        return new GunTypeModifiers(1.0, 1.0);
     }
 
     public static List<SoundGroupData> getEnabledSoundGroups() {
