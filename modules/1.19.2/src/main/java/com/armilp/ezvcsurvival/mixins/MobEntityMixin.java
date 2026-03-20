@@ -143,7 +143,7 @@ public abstract class MobEntityMixin implements IGoalRefresher {
         List<SoundGroupData> soundGroups = SoundConfig.getEnabledSoundGroups();
         if (soundGroups.isEmpty()) return;
 
-        ezvcsurvival$generalSoundGoal = new ReactToGeneralSoundGoal(mob, reaction.speed, (int) reaction.range, soundGroups);
+        ezvcsurvival$generalSoundGoal = new ReactToGeneralSoundGoal(mob, reaction.speed, (int) reaction.range);
         mob.goalSelector.addGoal(2, ezvcsurvival$generalSoundGoal);
     }
 

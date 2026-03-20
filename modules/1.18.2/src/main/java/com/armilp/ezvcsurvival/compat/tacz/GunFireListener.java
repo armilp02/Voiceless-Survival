@@ -18,14 +18,12 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class GunFireListener {
 
     private static final long EXPIRATION_TIME_MS = 5000;
     private static final AtomicReference<GunshotData> lastShot = new AtomicReference<>(null);
-    private static final AtomicBoolean lastShotSilenced = new AtomicBoolean(false);
 
     @SubscribeEvent
     public static void onGunFire(GunFireEvent event) {
@@ -64,8 +62,7 @@ public class GunFireListener {
             }
         }
 
-        lastShotSilenced.set(silenced);
-        lastShot.set(new GunshotData(shooterPos, System.currentTimeMillis(), gunType));
+        lastShot.set(new GunshotData(shooterPos, System.currentTimeMillis(), gunType, silenced));
     }
 
     private static GunTabType inferGunTypeFromId(String gunIdStr) {
@@ -112,13 +109,6 @@ public class GunFireListener {
             return null;
         }
         return data;
-    }
-
-    public static boolean wasLastShotSilenced() {
-        GunshotData data = lastShot.get();
-        if (data == null) return false;
-        if (System.currentTimeMillis() - data.timestamp() > EXPIRATION_TIME_MS) return false;
-        return lastShotSilenced.get();
     }
 
     public static class CommonGunIndexRegistry {
