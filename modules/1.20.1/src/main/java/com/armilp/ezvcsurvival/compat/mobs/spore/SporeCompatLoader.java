@@ -31,7 +31,7 @@ public class SporeCompatLoader {
         if (!id.startsWith("spore:")) return;
 
         EntityVoiceConfig.EntityConfig cfg = EntityVoiceConfig.getOrCreate(id);
-        if (!cfg.enabled) return;
+        if (cfg == null || !cfg.enabled) return;
 
         try {
             Goal voiceGoal = null;
