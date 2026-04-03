@@ -18,17 +18,19 @@ import net.minecraftforge.fml.common.Mod;
 
 import javax.annotation.Nullable;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 @ForgeVoicechatPlugin
 @Mod.EventBusSubscriber(modid = "ezvcsurvival")
 public class Plugin implements VoicechatPlugin {
 
     private boolean DEBUG;
-    private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+    private static final ScheduledExecutorService scheduler =
+            Executors.newScheduledThreadPool(1, r -> {
+                Thread t = Executors.defaultThreadFactory().newThread(r);
+                t.setDaemon(true);
+                return t;
+            });
     private static final Map<UUID, SoundData> playerSoundLocations = new ConcurrentHashMap<>();
     private static final Map<UUID, Long> lastVoiceEffectTime = new ConcurrentHashMap<>();
     private static final Map<UUID, Long> lastSculkVibrationTime = new ConcurrentHashMap<>();
@@ -237,6 +239,9 @@ public class Plugin implements VoicechatPlugin {
             }
         }
 
-        scheduler.schedule(() -> playerSoundLocations.remove(playerUUID), 5, TimeUnit.SECONDS);
+        try {
+            scheduler.schedule(() -> playerSoundLocations.remove(playerUUID), 5, TimeUnit.SECONDS);
+        } catch (RejectedExecutionException ignored) {
+        }
     }
 }
