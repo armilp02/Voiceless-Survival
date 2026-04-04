@@ -22,14 +22,10 @@ public class SoundConfig {
     public static final ForgeConfigSpec.BooleanValue DEBUG;
 
     private static final List<SoundGroupData> priorityGroups = new ArrayList<>();
-    private static final Map<String, Map<String, Object>> generalReactionsMap = new HashMap<>();
-    private static final Map<String, Map<String, Object>> gunfireReactionsMap = new HashMap<>();
     private static final Map<String, GunTypeModifiers> gunModifiersMap = new HashMap<>();
     private static final Map<String, GunTypeModifiers> silencerModifiersMap = new HashMap<>();
     private static final Set<String> silencedGunIds = new HashSet<>();
     private static final List<SoundGroupData> customSoundGroups = new ArrayList<>();
-
-    private static volatile boolean configLoaded = false;
 
     public static final ForgeConfigSpec.BooleanValue ENABLE_GUNFIRE;
     public static final ForgeConfigSpec.BooleanValue ENABLE_GENERAL_SOUNDS;
@@ -106,13 +102,13 @@ public class SoundConfig {
         );
         TACZ_SILENCER_MODIFIERS = builder.defineList("modifiers",
                 () -> List.of(
-                        "pistol=1.0,0.4",
-                        "sniper=1.0,0.35",
-                        "rifle=1.0,0.4",
-                        "shotgun=1.0,0.45",
-                        "smg=1.0,0.4",
-                        "rpg=1.0,0.5",
-                        "mg=1.0,0.45"
+                        "pistol=0.5,0.4",
+                        "sniper=0.5,0.35",
+                        "rifle=0.5,0.4",
+                        "shotgun=0.5,0.45",
+                        "smg=0.5,0.4",
+                        "rpg=0.5,0.5",
+                        "mg=0.5,0.45"
                 ),
                 obj -> obj instanceof String && ((String) obj).contains("=")
         );
@@ -121,6 +117,7 @@ public class SoundConfig {
         SPEC = builder.build();
 
         loadDefaultGunTypeModifiers();
+        loadDefaultSilencerModifiers();
     }
 
     @SubscribeEvent
@@ -128,7 +125,6 @@ public class SoundConfig {
         if (event.getConfig().getSpec() == SPEC) {
             EZVCSurvival.LOGGER.info("[SoundConfig] Loading configuration...");
             loadConfigs();
-            configLoaded = true;
         }
     }
 
@@ -144,13 +140,11 @@ public class SoundConfig {
         loadGunTypeModifiers();
         loadSilencedGuns();
         loadSilencerModifiers();
-        loadDefaultSilencerModifiers();
 
         try {
             GeneralSoundsConfig.init();
             GunfireConfig.init();
             mergeGeneralSoundsFromJson();
-            mergeGunfireFromJson();
             refreshPriorityGroups();
         } catch (Exception e) {
             EZVCSurvival.LOGGER.warn("[SoundConfig] Error loading JSON configs: {}", e.getMessage());
@@ -162,16 +156,16 @@ public class SoundConfig {
             EZVCSurvival.LOGGER.info("[SoundConfig] Loading DEFAULT gun type modifiers...");
         }
 
-        gunModifiersMap.put("pistol", new GunTypeModifiers(1.0, 3.8));
-        gunModifiersMap.put("sniper", new GunTypeModifiers(1.0, 8.0));
-        gunModifiersMap.put("rifle", new GunTypeModifiers(1.0, 6.5));
+        gunModifiersMap.put("pistol",  new GunTypeModifiers(1.0, 3.8));
+        gunModifiersMap.put("sniper",  new GunTypeModifiers(1.0, 8.0));
+        gunModifiersMap.put("rifle",   new GunTypeModifiers(1.0, 6.5));
         gunModifiersMap.put("shotgun", new GunTypeModifiers(1.0, 4.8));
-        gunModifiersMap.put("smg", new GunTypeModifiers(1.0, 3.0));
-        gunModifiersMap.put("rpg", new GunTypeModifiers(1.0, 10.0));
-        gunModifiersMap.put("mg", new GunTypeModifiers(1.0, 4.0));
+        gunModifiersMap.put("smg",     new GunTypeModifiers(1.0, 3.0));
+        gunModifiersMap.put("rpg",     new GunTypeModifiers(1.0, 10.0));
+        gunModifiersMap.put("mg",      new GunTypeModifiers(1.0, 4.0));
 
         if (isDebugEnabled()) {
-            EZVCSurvival.LOGGER.info("[SoundConfig] Loaded {} default modifiers", gunModifiersMap.size());
+            EZVCSurvival.LOGGER.info("[SoundConfig] Loaded {} default gun modifiers", gunModifiersMap.size());
             gunModifiersMap.forEach((key, value) ->
                     EZVCSurvival.LOGGER.info("[SoundConfig]   '{}' -> speed={}x, range={}x",
                             key, value.speedMultiplier(), value.rangeMultiplier())
@@ -180,13 +174,6 @@ public class SoundConfig {
     }
 
     private static void loadGunTypeModifiers() {
-        if (!configLoaded) {
-            if (isDebugEnabled()) {
-                EZVCSurvival.LOGGER.info("[SoundConfig] Config not loaded yet, keeping defaults");
-            }
-            return;
-        }
-
         gunModifiersMap.clear();
         List<? extends String> modifiers = TACZ_GUN_TYPE_MODIFIERS.get();
 
@@ -243,6 +230,16 @@ public class SoundConfig {
         }
     }
 
+    private static void loadDefaultSilencerModifiers() {
+        silencerModifiersMap.put("pistol",  new GunTypeModifiers(1.0, 0.4));
+        silencerModifiersMap.put("sniper",  new GunTypeModifiers(1.0, 0.35));
+        silencerModifiersMap.put("rifle",   new GunTypeModifiers(1.0, 0.4));
+        silencerModifiersMap.put("shotgun", new GunTypeModifiers(1.0, 0.45));
+        silencerModifiersMap.put("smg",     new GunTypeModifiers(1.0, 0.4));
+        silencerModifiersMap.put("rpg",     new GunTypeModifiers(1.0, 0.5));
+        silencerModifiersMap.put("mg",      new GunTypeModifiers(1.0, 0.45));
+    }
+
     private static void loadSilencerModifiers() {
         silencerModifiersMap.clear();
         List<? extends String> modifiers = TACZ_SILENCER_MODIFIERS.get();
@@ -272,33 +269,12 @@ public class SoundConfig {
         }
     }
 
-    private static void loadDefaultSilencerModifiers() {
-        silencerModifiersMap.put("pistol",  new GunTypeModifiers(1.0, 0.4));
-        silencerModifiersMap.put("sniper",  new GunTypeModifiers(1.0, 0.35));
-        silencerModifiersMap.put("rifle",   new GunTypeModifiers(1.0, 0.4));
-        silencerModifiersMap.put("shotgun", new GunTypeModifiers(1.0, 0.45));
-        silencerModifiersMap.put("smg",     new GunTypeModifiers(1.0, 0.4));
-        silencerModifiersMap.put("rpg",     new GunTypeModifiers(1.0, 0.5));
-        silencerModifiersMap.put("mg",      new GunTypeModifiers(1.0, 0.45));
-    }
-
     private static void refreshPriorityGroups() {
         priorityGroups.clear();
         GeneralSoundsConfig.processPrioritySounds(priorityGroups);
     }
 
     private static void mergeGeneralSoundsFromJson() {
-        Map<String, GeneralSoundsConfig.Reaction> mobs = GeneralSoundsConfig.getMobReactions();
-        if (mobs != null) {
-            for (Map.Entry<String, GeneralSoundsConfig.Reaction> e : mobs.entrySet()) {
-                GeneralSoundsConfig.Reaction r = e.getValue();
-                Map<String, Object> map = new HashMap<>();
-                map.put("speed", r.speed);
-                map.put("range", r.range);
-                generalReactionsMap.put(e.getKey(), map);
-            }
-        }
-
         customSoundGroups.removeIf(g -> g.groupName().startsWith("auto_sound_"));
         Map<String, GeneralSoundsConfig.SoundEntry> sounds = GeneralSoundsConfig.getSounds();
         if (sounds != null) {
@@ -313,21 +289,6 @@ public class SoundConfig {
             }
         }
         GeneralSoundsConfig.processPrioritySounds(priorityGroups);
-    }
-
-    private static void mergeGunfireFromJson() {
-        Map<String, GunfireConfig.Reaction> mobs = GunfireConfig.getMobReactions();
-        if (mobs != null) {
-            for (Map.Entry<String, GunfireConfig.Reaction> e : mobs.entrySet()) {
-                GunfireConfig.Reaction r = e.getValue();
-                if (r == null) continue;
-                Map<String, Object> map = new HashMap<>();
-                map.put("speed", r.speed);
-                map.put("range", r.range);
-                map.put("enabled", r.enabled);
-                gunfireReactionsMap.put(e.getKey(), map);
-            }
-        }
     }
 
     public static double getSpeedMultiplier(String gunType) {

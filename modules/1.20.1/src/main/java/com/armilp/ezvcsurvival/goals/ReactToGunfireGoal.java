@@ -21,33 +21,32 @@ import java.util.List;
 
 public class ReactToGunfireGoal extends Goal {
 
-    private static final long   MIN_REACTION_INTERVAL_MS = 500;
-    private static final long   SHOT_EXPIRY_MS           = 4000;
-    private static final double STUCK_THRESHOLD_SQ       = 0.04;
-    private static final int    STUCK_CHECK_INTERVAL     = 20;
-    private static final int    STUCK_MAX_TICKS          = 60;
-    private static final double ARRIVAL_DISTANCE_SQ      = 4.0;
-    private static final double SAME_POS_THRESHOLD_SQ    = 4.0;
+    private static final long MIN_REACTION_INTERVAL_MS = 500;
+    private static final long SHOT_EXPIRY_MS = 4000;
+    private static final double STUCK_THRESHOLD_SQ = 0.04;
+    private static final int STUCK_CHECK_INTERVAL = 20;
+    private static final int STUCK_MAX_TICKS = 60;
+    private static final double ARRIVAL_DISTANCE_SQ = 4.0;
+    private static final double SAME_POS_THRESHOLD_SQ = 4.0;
 
     private final Mob mob;
     private final double baseSpeed;
     private final double baseRange;
     private final boolean isMonster;
     private final List<ResourceLocation> prioritySoundLocations;
-    // Stagger stuck-checks across mobs to avoid same-tick spikes
     private final int tickOffset;
 
-    private Vec3   cachedTarget             = null;
-    private Vec3   lastSoundPos             = null;
-    private double cachedSpeed              = 0;
-    private int    tickCounter              = 0;
-    private Vec3   lastCheckedPos           = null;
-    private int    stuckTicks               = 0;
-    private long   lastReactionTimeMs       = 0;
-    private long   lastReactedShotTimestamp = -1;
+    private Vec3 cachedTarget = null;
+    private Vec3 lastSoundPos = null;
+    private double cachedSpeed = 0;
+    private int tickCounter = 0;
+    private Vec3 lastCheckedPos = null;
+    private int stuckTicks = 0;
+    private long lastReactionTimeMs = 0;
+    private long lastReactedShotTimestamp = -1;
 
     public ReactToGunfireGoal(Mob mob, double speed, double range) {
-        this.mob      = mob;
+        this.mob = mob;
         this.baseSpeed = speed;
         this.baseRange = range;
         this.isMonster = mob instanceof Monster;
@@ -82,7 +81,6 @@ public class ReactToGunfireGoal extends Goal {
 
         tryRegisterPrioritySounds(data);
 
-        // Only use priorityPos if it was registered at or after this shot — not a stale one
         Vec3 priorityPos = freshPriorityPos(data.timestamp());
         if (priorityPos != null) {
             double range = boostedRange();
@@ -103,11 +101,11 @@ public class ReactToGunfireGoal extends Goal {
 
     @Override
     public void start() {
-        cachedTarget   = null;
-        lastSoundPos   = null;
-        cachedSpeed    = baseSpeed;
-        tickCounter    = 0;
-        stuckTicks     = 0;
+        cachedTarget = null;
+        lastSoundPos = null;
+        cachedSpeed = baseSpeed;
+        tickCounter = 0;
+        stuckTicks = 0;
         lastCheckedPos = mob.position();
         lastReactionTimeMs = System.currentTimeMillis();
 
@@ -123,14 +121,13 @@ public class ReactToGunfireGoal extends Goal {
 
         Vec3 mobPos = mob.position();
 
-        // React immediately to a newer shot while still moving
         GunshotData latest = GunFireListener.getLastGunshotData();
         if (latest != null
                 && latest.timestamp() != lastReactedShotTimestamp
                 && System.currentTimeMillis() - latest.timestamp() <= SHOT_EXPIRY_MS) {
             tryRegisterPrioritySounds(latest);
             applyShot(latest);
-            stuckTicks     = 0;
+            stuckTicks = 0;
             lastCheckedPos = mobPos;
             return;
         }
@@ -154,28 +151,26 @@ public class ReactToGunfireGoal extends Goal {
 
     @Override
     public void stop() {
-        // Preserve lastReactedShotTimestamp so canUse() doesn't re-trigger on the same shot
         lastReactionTimeMs = System.currentTimeMillis();
-        cachedTarget   = null;
-        lastSoundPos   = null;
-        tickCounter    = 0;
-        stuckTicks     = 0;
+        cachedTarget = null;
+        lastSoundPos = null;
+        tickCounter = 0;
+        stuckTicks = 0;
         lastCheckedPos = null;
     }
 
     private void applyShot(GunshotData data) {
         lastReactedShotTimestamp = data.timestamp();
 
-        // Only use priorityPos if it was registered at or after this shot — not a stale one
         Vec3 priorityPos = freshPriorityPos(data.timestamp());
-        Vec3 soundPos    = priorityPos != null ? priorityPos : data.position();
+        Vec3 soundPos = priorityPos != null ? priorityPos : data.position();
 
         double speed, range;
         if (priorityPos != null) {
             range = boostedRange();
             speed = baseSpeed * 1.3;
         } else {
-            String gunType   = data.gunType().name().toLowerCase();
+            String gunType = data.gunType().name().toLowerCase();
             double rangeMult = SoundConfig.getRangeMultiplier(gunType);
             double speedMult = SoundConfig.getSpeedMultiplier(gunType);
             if (data.silenced()) {
@@ -190,7 +185,6 @@ public class ReactToGunfireGoal extends Goal {
         Vec3 mobPos = mob.position();
         if (mobPos.distanceToSqr(soundPos) > range * range) return;
 
-        // Same position as before — just refresh speed and reissue
         if (lastSoundPos != null
                 && soundPos.distanceToSqr(lastSoundPos) <= SAME_POS_THRESHOLD_SQ
                 && cachedTarget != null) {
@@ -202,7 +196,7 @@ public class ReactToGunfireGoal extends Goal {
         Vec3 dest = resolveDestination(mobPos, soundPos, range);
         if (dest != null) {
             cachedTarget = dest;
-            cachedSpeed  = speed;
+            cachedSpeed = speed;
             lastSoundPos = soundPos;
             issueMoveTo();
         }
@@ -214,6 +208,8 @@ public class ReactToGunfireGoal extends Goal {
     }
 
     private void tryRegisterPrioritySounds(GunshotData data) {
+        if (data.silenced()) return;
+
         for (ResourceLocation loc : prioritySoundLocations) {
             Vec3 pos = SoundEventTracker.getLastPlayedPositionForSound(loc);
             if (pos != null) {
@@ -221,14 +217,13 @@ public class ReactToGunfireGoal extends Goal {
                 return;
             }
         }
-        // Treat very loud guns as priority sounds directly
+
         String gunType = data.gunType().name().toLowerCase();
         if (SoundConfig.getRangeMultiplier(gunType) >= 6.0) {
             ReactToGeneralSoundGoal.setPrioritySound(data.position());
         }
     }
 
-    // Returns lastPrioritySoundPos only if it was set at or after the given shot timestamp
     private static Vec3 freshPriorityPos(long shotTimestamp) {
         Vec3 pos = ReactToGeneralSoundGoal.lastPrioritySoundPos;
         if (pos == null) return null;
@@ -236,7 +231,7 @@ public class ReactToGunfireGoal extends Goal {
     }
 
     private double gunRange(GunshotData data) {
-        String gunType   = data.gunType().name().toLowerCase();
+        String gunType = data.gunType().name().toLowerCase();
         double rangeMult = SoundConfig.getRangeMultiplier(gunType);
         if (data.silenced()) rangeMult *= SoundConfig.getSilencerModifiers(gunType).rangeMultiplier();
         return baseRange * rangeMult * weatherMultiplier();
@@ -246,7 +241,6 @@ public class ReactToGunfireGoal extends Goal {
         return baseRange * 1.5 * weatherMultiplier();
     }
 
-    // Rain/thunder reduces effective hearing range.
     private double weatherMultiplier() {
         return (mob.level().isRaining() || mob.level().isThundering())
                 ? SoundConfig.THUNDER_RANGE_MULTIPLIER.get()
