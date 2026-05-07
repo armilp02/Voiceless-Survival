@@ -1,0 +1,26 @@
+pluginManagement {
+    repositories {
+        mavenLocal()
+        gradlePluginPortal()
+        maven { url = 'https://maven.neoforged.net/releases' }
+        maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
+    }
+}
+
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+rootProject.name = 'Voiceless Survival NeoForge'
+
+include "modules:1.21.1"
+//include "modules:1.21.2"
+//include "modules:1.21.3"
+//include "modules:1.21.4"
+//include "modules:1.21.5"
+//include "modules:1.21.6"
+//include "modules:1.21.7"
+//include "modules:1.21.8"
+//include "modules:1.21.9"
+//include "modules:1.21.10"
+//include "modules:1.21.11"

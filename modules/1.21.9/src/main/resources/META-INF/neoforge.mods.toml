@@ -1,0 +1,34 @@
+modLoader = "javafml"
+loaderVersion = "[4,)"
+license = "ARR"
+issueTrackerURL = "https://github.com/armilp02/Voiceless-Survival/issues"
+
+[[mods]]
+modId = "ezvcsurvival"
+version = "2.0.0"
+displayName = "Voiceless Survival"
+description = '''
+A survival mod for Minecraft with voice chat integration and enhanced gameplay.
+'''
+[[mixins]]
+config="ezvcsurvival.mixins.json"
+
+authors = "armilp"
+[[dependencies.ezvcsurvival]]
+modId = "neoforge"
+type = "required"
+versionRange = "[${neo_version},)"
+ordering = "NONE"
+side = "BOTH"
+[[dependencies.ezvcsurvival]]
+modId = "minecraft"
+type = "required"
+versionRange = "${minecraft_version_range}"
+ordering = "NONE"
+side = "BOTH"
+[[dependencies.ezvcsurvival]]
+modId = "voicechat"
+type = "required"
+versionRange = "[1.21.9-2.6.4,)"
+ordering = "AFTER"
+side = "BOTH"

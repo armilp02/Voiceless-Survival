@@ -1,0 +1,171 @@
+import net.darkhax.curseforgegradle.TaskPublishCurseForge
+plugins {
+    id 'net.neoforged.moddev'
+    id 'com.modrinth.minotaur'
+    id 'net.darkhax.curseforgegradle'
+}
+
+def changelogText = rootProject.file('changelog.md').exists() ? rootProject.file('changelog.md').text : ""
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = "${mod_name}-${minecraft_version}-neoforge"
+}
+
+neoForge {
+    version = neo_version
+
+    parchment {
+        mappingsVersion = parchment_mappings_version
+        minecraftVersion = parchment_minecraft_version
+    }
+
+    runs {
+        client {
+            client()
+            systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
+        }
+
+        server {
+            server()
+            programArgument '--nogui'
+            systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
+        }
+
+        gameTestServer {
+            type = "gameTestServer"
+            systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
+        }
+
+        data {
+            data()
+            programArguments.addAll '--mod', mod_id, '--all',
+                    '--output', file('src/generated/resources/').getAbsolutePath(),
+                    '--existing', file('src/main/resources/').getAbsolutePath()
+        }
+
+        configureEach {
+            systemProperty 'forge.logging.markers', 'REGISTRIES'
+            logLevel = org.slf4j.event.Level.DEBUG
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+sourceSets.main.resources {
+    srcDir 'src/generated/resources'
+}
+
+configurations {
+    runtimeClasspath.extendsFrom localRuntime
+}
+
+dependencies {
+    annotationProcessor "org.spongepowered:mixin:0.8.7:processor"
+    compileOnly "org.spongepowered:mixin:0.8.7"
+
+    implementation "de.maxhenkel.voicechat:voicechat-api:${voicechat_api_version}"
+    runtimeOnly "maven.modrinth:simple-voice-chat:neoforge-${voicechat_version}"
+}
+
+tasks.withType(ProcessResources).configureEach {
+    var replaceProperties = [
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            neo_version            : neo_version,
+            neo_version_range      : neo_version_range,
+            loader_version_range   : loader_version_range,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+            mod_authors            : mod_authors,
+            mod_description        : mod_description
+    ]
+    inputs.properties replaceProperties
+    filesMatching(['META-INF/neoforge.mods.toml', 'pack.mcmeta', '*.mixins.json']) {
+        expand replaceProperties
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << "-Xmaxerrs" << "1000"
+}
+
+jar {
+    manifest {
+        attributes([
+                'Specification-Title'     : mod_name,
+                'Specification-Vendor'    : mod_authors,
+                'Specification-Version'   : project.jar.archiveVersion,
+                'Implementation-Title'    : project.name,
+                'Implementation-Version'  : project.jar.archiveVersion,
+                'Implementation-Vendor'   : mod_authors,
+                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+                'Timestamp'               : System.currentTimeMillis(),
+                'Built-On-Java'           : "${System.getProperty('java.vm.version')} (${System.getProperty('java.vm.vendor')})",
+                'Built-On-Minecraft'      : minecraft_version,
+                'MixinConfigs'            : 'ezvcsurvival.mixins.json'
+        ])
+    }
+}
+
+tasks.register('publishCurseForge', TaskPublishCurseForge) {
+    dependsOn jar
+
+    apiToken = System.getenv("CURSEFORGE_TOKEN")
+
+    def mainFile = upload('1173633', jar)
+    mainFile.displayName = "${mod_name}-neoforge-${minecraft_version}-${mod_version}"
+    mainFile.releaseType = 'release'
+    mainFile.changelog = changelogText
+    mainFile.changelogType = 'markdown'
+    mainFile.addGameVersion("${minecraft_version}")
+    mainFile.addModLoader("NeoForge")
+
+    mainFile.addRequirement("simple-voice-chat")
+}
+
+modrinth {
+    token = System.getenv("MODRINTH_TOKEN")
+    projectId = "voiceless-survival"
+    versionName = "${mod_name} ${mod_version} ${minecraft_version}"
+    versionNumber = "neoforge-${mod_version}"
+    versionType = "release"
+    uploadFile = jar.archiveFile
+    gameVersions = ["${minecraft_version}"]
+    loaders = ["neoforge"]
+    changelog = changelogText
+    dependencies {
+        required.project 'simple-voice-chat'
+    }
+}
+
+
+tasks.register('publishModdedSite') {
+    dependsOn 'build'
+    dependsOn 'publishCurseForge'
+    //dependsOn 'modrinth'
+}
+
+publishing {
+    publications {
+        register('mavenJava', MavenPublication) {
+            artifactId base.archivesName.get()
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            url "file://${project.projectDir}/repo"
+        }
+    }
+}

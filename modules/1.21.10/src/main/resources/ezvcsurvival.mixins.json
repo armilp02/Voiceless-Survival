@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "package": "com.armilp.ezvcsurvival.mixins",
+  "compatibilityLevel": "JAVA_21",
+  "minVersion": "0.8.5",
+  "refmap": "ezvcsurvival.refmap.json",
+  "mixins": [
+    "MobTargetMixin"
+  ],
+  "client": [
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
