@@ -6,6 +6,8 @@ import com.armilp.ezvcsurvival.config.EntityVoiceConfig;
 import com.armilp.ezvcsurvival.config.VoiceConfig;
 import com.armilp.ezvcsurvival.data.SoundData;
 import com.armilp.ezvcsurvival.events.ArmorEventHandler;
+import com.armilp.ezvcsurvival.network.EZVCNetwork;
+import com.armilp.ezvcsurvival.network.VoiceLevelPacket;
 import com.armilp.ezvcsurvival.sculk.SculkVibrationHelper;
 import de.maxhenkel.voicechat.api.*;
 import de.maxhenkel.voicechat.api.events.EventRegistration;
@@ -15,6 +17,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.network.PacketDistributor;
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -120,6 +123,10 @@ public class Plugin implements VoicechatPlugin {
         }
 
         double audioLevel = getMaxAudioLevel(decoded);
+
+        if (sender.getPlayer().getPlayer() instanceof ServerPlayer selfPlayer) {
+            EZVCNetwork.INSTANCE.send(PacketDistributor.PLAYER.with(() -> selfPlayer), new VoiceLevelPacket(audioLevel));
+        }
 
         UUID playerUUID = sender.getPlayer().getUuid();
         Position voicechatPosition = sender.getPlayer().getPosition();

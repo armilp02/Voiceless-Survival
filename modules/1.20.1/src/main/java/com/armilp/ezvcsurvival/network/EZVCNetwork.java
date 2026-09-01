@@ -35,5 +35,10 @@ public class EZVCNetwork {
                 .decoder(UpdateConfigPacket::decode)
                 .consumerMainThread(UpdateConfigPacket::handle)
                 .add();
+        INSTANCE.messageBuilder(VoiceLevelPacket.class, nextID())
+                .encoder(VoiceLevelPacket::encode)
+                .decoder(VoiceLevelPacket::decode)
+                .consumerMainThread(VoiceLevelPacket::handle)
+                .add();
     }
 }

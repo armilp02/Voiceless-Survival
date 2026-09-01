@@ -16,7 +16,7 @@ public class ModInfo {
         if (modContainer != null) {
             return modContainer.getModInfo().getVersion().toString();
         }
-        return "2.0.0";
+        return "2.1.2";
     }
 
 }
