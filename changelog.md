@@ -1,4 +1,7 @@
-### **V2.1.2**
+### **V2.2.0**
 
 ✅ **Added**:
- - voice activity meter overlay, shows a dB bar with your current mic level while talking.
+- Plasmo Voice compatibility
+
+🔄 **Changed**:
+- Now you only need Plasmo Voice or Simple Voice Chat installed (either one works, or both)

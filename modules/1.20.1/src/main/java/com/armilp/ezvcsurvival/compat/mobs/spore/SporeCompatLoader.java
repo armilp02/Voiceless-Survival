@@ -4,6 +4,7 @@ import com.Harbinger.Spore.Sentities.BaseEntities.Calamity;
 import com.Harbinger.Spore.Sentities.BaseEntities.Infected;
 import com.Harbinger.Spore.Sentities.BaseEntities.UtilityEntity;
 import com.armilp.ezvcsurvival.config.EntityVoiceConfig;
+import com.armilp.ezvcsurvival.config.VoiceConfig;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
@@ -65,13 +66,11 @@ public class SporeCompatLoader {
                 utilityEntity.goalSelector.addGoal(1, voiceGoal);
             }
 
-            if (voiceGoal != null) {
-                System.out.println("[EZVCSurvival] Added SporeVoiceTargetGoal to " + id);
-            }
-
         } catch (Exception e) {
-            System.err.println("[EZVCSurvival] Failed to add goal to Spore entity: " + e);
-            e.printStackTrace();
+            if (VoiceConfig.DEBUG.get()) {
+                System.err.println("[EZVCSurvival] Failed to add goal to Spore entity: " + e);
+                e.printStackTrace();
+            }
         }
     }
 }

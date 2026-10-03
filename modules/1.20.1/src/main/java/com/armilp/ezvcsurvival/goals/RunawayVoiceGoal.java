@@ -1,6 +1,6 @@
 package com.armilp.ezvcsurvival.goals;
 
-import com.armilp.ezvcsurvival.voicechat.Plugin;
+import com.armilp.ezvcsurvival.voicechat.VoiceProcessor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.ai.goal.Goal;
@@ -32,7 +32,7 @@ public class RunawayVoiceGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        targetSoundPosition = Plugin.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange, threshold);
+        targetSoundPosition = VoiceProcessor.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange, threshold);
         return targetSoundPosition != null;
     }
 
@@ -86,7 +86,7 @@ public class RunawayVoiceGoal extends Goal {
         double distanceSq2D = dx * dx + dz * dz;
 
         if (targetSoundPosition == null || distanceSq2D > threshold * threshold) {
-            targetSoundPosition = Plugin.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange, threshold);
+            targetSoundPosition = VoiceProcessor.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange, threshold);
         } else {
             fleeFrom(new Vec3(gx, groundedPos.getY(), gz));
         }

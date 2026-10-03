@@ -5,6 +5,8 @@ import com.armilp.ezvcsurvival.compat.mobs.spore.SporeCompatLoader;
 import com.armilp.ezvcsurvival.config.*;
 import com.armilp.ezvcsurvival.network.EZVCNetwork;
 import com.armilp.ezvcsurvival.sculk.ModGameEvent;
+import com.armilp.ezvcsurvival.voicechat.plasmo.PlasmoVoiceCompat;
+import com.armilp.ezvcsurvival.voicechat.VoiceModCheck;
 import com.mojang.logging.LogUtils;
 import com.tacz.guns.GunMod;
 import com.tacz.guns.resource.CommonAssetsManager;
@@ -32,9 +34,13 @@ public class EZVCSurvival {
     public EZVCSurvival() {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
         EZVCNetwork.registerPackets();
+        VoiceModCheck.verify();
 
         if (ModList.get().isLoaded(GunMod.MOD_ID)) {
             MinecraftForge.EVENT_BUS.register(GunFireListener.class);
+        }
+        if (ModList.get().isLoaded("plasmovoice")) {
+            PlasmoVoiceCompat.register();
         }
 
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, VoiceConfig.CONFIG, "ezvcsurvival/voices.toml");

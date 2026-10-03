@@ -2,7 +2,7 @@ package com.armilp.ezvcsurvival.mixins;
 
 import com.armilp.ezvcsurvival.config.EntityVoiceConfig;
 import com.armilp.ezvcsurvival.config.VoiceConfig;
-import com.armilp.ezvcsurvival.voicechat.Plugin;
+import com.armilp.ezvcsurvival.voicechat.VoiceProcessor;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -97,7 +97,7 @@ public abstract class MobTargetMixin {
 
     @Unique
     private boolean ezvcsurvival$isPlayerCurrentlySpeaking(Player player) {
-        return Plugin.getLastSoundLocation(player.blockPosition(), 64.0, -20.0) != null;
+        return VoiceProcessor.getLastSoundLocation(player.blockPosition(), 64.0, -20.0) != null;
     }
 
     @Unique

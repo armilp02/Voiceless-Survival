@@ -93,10 +93,6 @@ repositories {
         name = 'plasmoverse-releases'
         url = 'https://repo.plasmoverse.com/releases'
     }
-    maven {
-        name = 'plasmoverse-snapshots'
-        url = 'https://repo.plasmoverse.com/snapshots'
-    }
 }
 
 dependencies {
@@ -107,17 +103,15 @@ dependencies {
     compileOnly fg.deobf("curse.maven:fungal-infection-spore-678295:7134723")
     implementation fg.deobf("software.bernie.geckolib:geckolib-forge-${minecraft_version}:${geckolib_version}")
     implementation fg.deobf("curse.maven:vics-point-blank-961053:6012485")
-    implementation fg.deobf("curse.maven:apocalypse-now-448410:5365233")
+    //implementation fg.deobf("curse.maven:apocalypse-now-448410:5365233")
 
     // APIs como compileOnly
     compileOnly "de.maxhenkel.voicechat:voicechat-api:${voicechat_api_version}"
-    //compileOnly 'su.plo.voice.api:server:2.1.8'
+    compileOnly 'su.plo.voice.api:client:2.1.17'
+    compileOnly 'su.plo.voice.api:server:2.1.17'
 
     // Simple Voice Chat
     runtimeOnly fg.deobf("maven.modrinth:simple-voice-chat:forge-${voicechat_version}")
-
-    // Plasmo Voice - descarga el archivo JAR manualmente
-    //implementation fg.deobf("curse.maven:plasmo-voice-467028:7341439")
 }
 
 tasks.named('processResources', ProcessResources).configure {
@@ -126,7 +120,7 @@ tasks.named('processResources', ProcessResources).configure {
             forge_version: forge_version, forge_version_range: forge_version_range,
             loader_version_range: loader_version_range,
             mod_id: mod_id, mod_name: mod_name, mod_license: mod_license, mod_version: mod_version,
-            mod_authors: mod_authors, mod_description: mod_description,
+            mod_authors: mod_authors, mod_description: mod_description, plasmovoice_version: plasmovoice_version,
             pack_version: 15
     ]
     inputs.properties replaceProperties
@@ -165,7 +159,8 @@ modrinth {
     changelog = changelogText
 
     dependencies {
-        optional.project "simple-voice-chat"
+        required.project "simple-voice-chat"
+        required.project "plasmo-voice"
         optional.project "timeless-and-classics-zero"
         optional.project "vics-point-blank"
         optional.project "overmans-quiet-place"
@@ -178,14 +173,17 @@ tasks.register('publishCurseForge', TaskPublishCurseForge) {
     apiToken = System.getenv("CURSEFORGE_TOKEN")
 
     def mainFile = upload('1173633', jar)
-    mainFile.displayName = "${mod_name}-forge-${minecraft_version}"
+    mainFile.displayName = "${mod_name}-${mod_version}"
     mainFile.releaseType = 'release'
     mainFile.changelog = changelogText
     mainFile.changelogType = 'markdown'
     mainFile.addGameVersion("${minecraft_version}")
-    mainFile.addModLoader("Forge")
+    mainFile.addGameVersion("Forge")
+    mainFile.addGameVersion("Client")
+    mainFile.addGameVersion("Server")
 
-    mainFile.addOptional("simple-voice-chat")
+    mainFile.addRequirement("simple-voice-chat")
+    mainFile.addRequirement("plasmo-voice")
     mainFile.addOptional("timeless-and-classics-zero")
     mainFile.addOptional("death-angels")
     mainFile.addOptional("vics-point-blank")

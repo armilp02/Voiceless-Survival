@@ -3,7 +3,7 @@ package com.armilp.ezvcsurvival.compat.mobs.spore;
 import com.Harbinger.Spore.Sentities.BaseEntities.Calamity;
 import com.Harbinger.Spore.Sentities.BaseEntities.Infected;
 import com.Harbinger.Spore.Sentities.BaseEntities.UtilityEntity;
-import com.armilp.ezvcsurvival.voicechat.Plugin;
+import com.armilp.ezvcsurvival.voicechat.VoiceProcessor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.goal.Goal;
@@ -57,7 +57,7 @@ public class SporeVoiceTargetGoal extends Goal {
         }
 
         targetPlayer = getNearestPlayerInRange();
-        targetSoundPosition = Plugin.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange, threshold);
+        targetSoundPosition = VoiceProcessor.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange, threshold);
         return targetPlayer != null || targetSoundPosition != null;
     }
 
@@ -124,7 +124,7 @@ public class SporeVoiceTargetGoal extends Goal {
         double arrivalThresholdSq = this.threshold * this.threshold;
 
         if (distanceSq <= arrivalThresholdSq) {
-            targetSoundPosition = Plugin.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange, threshold);
+            targetSoundPosition = VoiceProcessor.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange, threshold);
             if (targetSoundPosition != null) {
                 moveToSoundPosition();
             } else {
@@ -134,7 +134,7 @@ public class SporeVoiceTargetGoal extends Goal {
         }
 
         if (distanceSq > (voiceDetectionRange * voiceDetectionRange) / 2.0) {
-            BlockPos newSoundPosition = Plugin.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange, threshold);
+            BlockPos newSoundPosition = VoiceProcessor.getLastSoundLocation(mob.blockPosition(), voiceDetectionRange, threshold);
             if (newSoundPosition == null) {
                 targetSoundPosition = null;
                 mob.getNavigation().stop();

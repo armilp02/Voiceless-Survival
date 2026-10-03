@@ -1,5 +1,6 @@
 package com.armilp.ezvcsurvival.goals;
 
+import com.armilp.ezvcsurvival.EZVCSurvival;
 import com.armilp.ezvcsurvival.config.GeneralSoundsConfig;
 import com.armilp.ezvcsurvival.config.SoundConfig;
 import com.armilp.ezvcsurvival.data.TimedSoundData;
@@ -29,7 +30,6 @@ public class ReactToGeneralSoundGoal extends Goal {
     private static final int STUCK_MAX_TICKS = 60;
     private static final double ARRIVAL_DISTANCE_SQ = 4.0;
 
-    // Shared priority sound state — written by both goal types, read in canUse()
     public static volatile Vec3 lastPrioritySoundPos = null;
     public static volatile long lastPrioritySoundTimestamp = 0;
 
@@ -38,7 +38,6 @@ public class ReactToGeneralSoundGoal extends Goal {
     private final double baseRange;
     private final String entityId;
     private final boolean isMonster;
-    // Stagger stuck-checks across mobs to avoid same-tick spikes
     private final int tickOffset;
 
     private Vec3 targetSoundPos = null;
@@ -49,6 +48,7 @@ public class ReactToGeneralSoundGoal extends Goal {
     private Vec3 lastCheckedPos = null;
     private int stuckTicks = 0;
     private long lastStartTimeMs = 0;
+    private boolean pursuingPriority = false;
 
     public ReactToGeneralSoundGoal(Mob mob, double speed, double range) {
         this.mob = mob;
@@ -71,7 +71,6 @@ public class ReactToGeneralSoundGoal extends Goal {
         GeneralSoundsConfig.Reaction mobReaction = GeneralSoundsConfig.getMobReactions().get(entityId);
         if (mobReaction == null || !mobReaction.enabled) return false;
 
-        // Priority sound takes precedence over individual sound entries
         Vec3 capturedPriority = lastPrioritySoundPos;
         if (capturedPriority != null) {
             if (now - lastPrioritySoundTimestamp > PRIORITY_SOUND_DURATION_MS) {
@@ -82,6 +81,7 @@ public class ReactToGeneralSoundGoal extends Goal {
                     targetSoundPos = capturedPriority;
                     activeSpeed = mobReaction.speed * 1.5;
                     targetSetTime = now;
+                    pursuingPriority = true;
                     return true;
                 }
             }
@@ -118,6 +118,11 @@ public class ReactToGeneralSoundGoal extends Goal {
                 bestPos = soundData.position();
                 bestSpeedMult = soundEntry.speed_multiplier;
                 bestTimestamp = soundData.timestamp();
+
+                if (soundId.startsWith("pointblank:")) {
+                    EZVCSurvival.LOGGER.info("[Pointblank] {} reacting to '{}' dist={} blocks",
+                            entityId, soundId, (int) Math.sqrt(distSq));
+                }
             }
         }
 
@@ -127,6 +132,7 @@ public class ReactToGeneralSoundGoal extends Goal {
         activeSpeed = mobReaction.speed * bestSpeedMult;
         targetSetTime = now;
         lastReactedSoundTimestamp = bestTimestamp;
+        pursuingPriority = false;
         return true;
     }
 
@@ -152,6 +158,9 @@ public class ReactToGeneralSoundGoal extends Goal {
     public void tick() {
         if (targetSoundPos == null) return;
         tickCounter++;
+
+        checkAndApplyPrioritySound();
+
         if ((tickCounter + tickOffset) % STUCK_CHECK_INTERVAL != 0) return;
 
         Vec3 mobPos = mob.position();
@@ -183,6 +192,34 @@ public class ReactToGeneralSoundGoal extends Goal {
         tickCounter = 0;
         stuckTicks = 0;
         lastCheckedPos = null;
+        pursuingPriority = false;
+    }
+
+    private void checkAndApplyPrioritySound() {
+        if (pursuingPriority) return;
+
+        Vec3 capturedPriority = lastPrioritySoundPos;
+        if (capturedPriority == null) return;
+
+        long now = System.currentTimeMillis();
+        if (now - lastPrioritySoundTimestamp > PRIORITY_SOUND_DURATION_MS) {
+            lastPrioritySoundPos = null;
+            return;
+        }
+
+        GeneralSoundsConfig.Reaction mobReaction = GeneralSoundsConfig.getMobReactions().get(entityId);
+        if (mobReaction == null || !mobReaction.enabled) return;
+
+        double effectiveRange = mobReaction.range * 1.5 * weatherMultiplier();
+        if (mob.position().distanceToSqr(capturedPriority) > effectiveRange * effectiveRange) return;
+
+        targetSoundPos = capturedPriority;
+        activeSpeed = mobReaction.speed * 1.5;
+        targetSetTime = now;
+        pursuingPriority = true;
+        stuckTicks = 0;
+        lastCheckedPos = mob.position();
+        issueMoveTo();
     }
 
     private void issueMoveTo() {
@@ -194,8 +231,6 @@ public class ReactToGeneralSoundGoal extends Goal {
         mob.getNavigation().moveTo(dest.x, dest.y, dest.z, activeSpeed);
     }
 
-
-    // Rain/thunder reduces effective hearing range.
     private double weatherMultiplier() {
         return (mob.level().isRaining() || mob.level().isThundering())
                 ? SoundConfig.THUNDER_RANGE_MULTIPLIER.get()
